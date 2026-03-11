@@ -1,9 +1,18 @@
 import telebot
 
-TOKEN = "8791892359:AAHgDmGvBNBueRDm5vwdZmT9Hjj1_LGhaTI"
+TOKEN = "MEU_TOKEN"
 
 bot = telebot.TeleBot(TOKEN)
 
+# comando /start
+@bot.message_handler(commands=['start'])
+def start(msg):
+    bot.send_message(
+        msg.chat.id,
+        "🌸 Olá! Eu sou a KaoriBot!\nUse /m para ver os comandos."
+    )
+
+# comando /fixar
 @bot.message_handler(commands=['fixar'])
 def fixar(msg):
     mensagem = bot.send_message(
