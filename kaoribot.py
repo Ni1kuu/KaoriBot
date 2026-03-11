@@ -98,7 +98,9 @@ def foto_para_figura(msg):
             ratio = min(max_size / width, max_size / height)
             new_width = int(width * ratio)
             new_height = int(height * ratio)
-            image = image.resize((new_width, new_height), Image.ANTIALIAS)
+
+            # Substituído ANTIALIAS por LANCZOS para Pillow 10+
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
             # Cria canvas 512x512 com fundo transparente
             final_image = Image.new("RGBA", (512, 512), (0,0,0,0))
