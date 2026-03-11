@@ -3,7 +3,6 @@ import telebot
 import os
 import time
 
-# Pega o token do bot do ambiente (Railway ou .env)
 TOKEN = os.getenv("TOKEN")
 if not TOKEN:
     raise ValueError("⚠️ Token não definido! Crie a variável TOKEN no Railway.")
@@ -22,13 +21,13 @@ def start(msg):
 @bot.message_handler(commands=['m','menu'])
 def menu(msg):
     texto = """
-🌸 Menu da KaoriBot
-
-/start - Iniciar o bot
-/m - Abrir menu de comandos
-/fixar - Fixar mensagem
-/ping - Ver ping do bot em ms
-/info - Informações do bot
+╭━━━━━━🌸 KAORI BOT 🌸━━━━━━╮
+├ /start → Iniciar o bot
+├ /m → Abrir menu de comandos
+├ /ping → Ver ping do bot em ms
+├ /fixar → Fixar mensagem
+├ /info → Informações do bot
+╰━━━━━━━━━━━━━━━━━━━━━━╯
 """
     bot.send_message(msg.chat.id, texto)
 
