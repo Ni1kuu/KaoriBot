@@ -5,18 +5,14 @@ import time
 import os
 
 # ─── CONFIGURAÇÃO DO BOT ───
-TOKEN = os.getenv("BOT_TOKEN")
-if not TOKEN:
-    TOKEN = "8791892359:AAHgDmGvBNBueRDm5vwdZmT9Hjj1_LGhaTI"
-
+TOKEN = os.getenv("BOT_TOKEN") or "8791892359:AAHgDmGvBNBueRDm5vwdZmT9Hjj1_LGhaTI"
 bot = telebot.TeleBot(TOKEN)
 
 BOT_VERSION = "2.0"
 CREATOR = "Nikuu"
-
 start_time = time.time()
 
-# ─── SISTEMA DE XP E NÍVEL ───
+# ─── XP E NÍVEL DOS USUÁRIOS ───
 user_xp = {}  # {user_id: xp}
 
 def add_xp(user_id, amount=1):
@@ -36,10 +32,13 @@ def xp_bar(xp):
     empty = "░" * (total_slots - xp_in_level)
     return f"[{filled}{empty}] Lvl {level}"
 
+# ─── NÍVEL DO BOT (DEUS CÓSMICO) ───
+BOT_XP = 10000
+BOT_LEVEL_NAME = "🌌 DEUS CÓSMICO 🌌"
+BOT_XP_BAR = "[██████████] Lvl MAX"
+
 # ─── STATUS DO BOT ───
 bot_ativo = True
-def check_bot_status():
-    return bot_ativo
 
 # ─── MENU COMPLETO ───
 def menu_text():
@@ -68,7 +67,6 @@ def menu_text():
 🛡 Administração
 /pin → Fixar mensagem respondida
 /unpin → Desafixar mensagem
-# /ban /kick /mute /unmute (opcional)
 
 🤖 Bot
 /start → Iniciar bot
@@ -82,12 +80,24 @@ def menu_text():
 ╰━━━━━━━━━━━━━━━━━━━━╯
 """
 
-# ─── COMANDOS ───
+# ─── FUNÇÕES AUXILIARES ───
+def uptime():
+    uptime_sec = int(time.time() - start_time)
+    h = uptime_sec // 3600
+    m = (uptime_sec % 3600) // 60
+    s = uptime_sec % 60
+    return f"{h}h {m}m {s}s"
 
+def measure_ping(chat_id):
+    start_ping = time.time()
+    bot.send_chat_action(chat_id, 'typing')
+    ping_ms = int((time.time() - start_ping) * 1000)
+    return ping_ms
+
+# ─── COMANDOS ───
 @bot.message_handler(commands=['start'])
 def start(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     bot.send_message(msg.chat.id,
         f"🌸 Olá {msg.from_user.first_name}!\n"
@@ -96,15 +106,13 @@ def start(msg):
 
 @bot.message_handler(commands=['m'])
 def menu(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     bot.send_message(msg.chat.id, menu_text(),parse_mode="Markdown")
 
 @bot.message_handler(commands=['h'])
 def tips(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     dicas = ["🌸 Dica do dia: Seja paciente!", 
              "🌸 Dica do dia: Respire fundo antes de agir.", 
@@ -113,35 +121,30 @@ def tips(msg):
 
 @bot.message_handler(commands=['i'])
 def info(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     bot.send_message(msg.chat.id,
                      f"🌸 KaoriBot v{BOT_VERSION}\nBot de diversão e utilidades")
 
 @bot.message_handler(commands=['id'])
 def user_id(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     bot.send_message(msg.chat.id,f"🆔 Seu ID: `{msg.from_user.id}`",parse_mode="Markdown")
 
 @bot.message_handler(commands=['p'])
 def perfil(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     username = msg.from_user.username
-    if username: username = "@"+username
-    else: username = "sem username"
+    username = "@"+username if username else "sem username"
     bot.send_message(msg.chat.id,
         f"╭━━━👤 PERFIL ━━━╮\nNome: {msg.from_user.first_name}\nUsuário: {username}\nID: {msg.from_user.id}\n╰━━━━━━━━━━━━╯",
         parse_mode="Markdown")
 
 @bot.message_handler(commands=['a'])
 def avatar(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     photos = bot.get_user_profile_photos(msg.from_user.id)
     if photos.total_count > 0:
@@ -150,57 +153,54 @@ def avatar(msg):
     else:
         bot.send_message(msg.chat.id,"Você não possui foto.")
 
-# Diversão
+# ─── DIVERSÃO ───
 @bot.message_handler(commands=['d'])
 def dado(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     bot.send_message(msg.chat.id,f"🎲 Número aleatório: {random.randint(1,6)}")
 
 @bot.message_handler(commands=['e'])
 def echo(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     text = msg.text.replace("/e","").strip()
-    bot.send_message(msg.chat.id,f"💬 {text}")
+    if not text:
+        bot.send_message(msg.chat.id,"💡 Dica: Use /e seguido do que deseja que eu repita. Ex: `/e Olá!`")
+    else:
+        bot.send_message(msg.chat.id,f"💬 {text}")
 
 @bot.message_handler(commands=['r'])
 def random_reply(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     respostas = ["🌸 Sim!", "🌸 Não!", "🌸 Talvez…", "🌸 Com certeza!", "🌸 Pergunte novamente."]
     bot.send_message(msg.chat.id, random.choice(respostas))
 
 @bot.message_handler(commands=['f'])
 def forca(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     palavras = ["Kaori","Bot","Telegram","Python","Railway"]
     palavra = random.choice(palavras).upper()
-    bot.send_message(msg.chat.id,f"🎯 Palavra da forca (demo): {palavra}")
+    bot.send_message(msg.chat.id,
+        f"🎯 Palavra escolhida (demo): {palavra}\n💡 Dica: Este é um teste, tente adivinhar letras em versões futuras!")
 
 @bot.message_handler(commands=['c'])
 def coin(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     bot.send_message(msg.chat.id,f"🪙 {random.choice(['Cara','Coroa'])}")
 
 @bot.message_handler(commands=['ro'])
 def roll(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     bot.send_message(msg.chat.id,f"🎲 Rolagem grande: {random.randint(1,20)}")
 
 @bot.message_handler(commands=['j'])
 def joke(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     piadas = ["🌸 Por que o gato mia? Porque está com fome!", 
               "🌸 Por que o bot foi ao médico? Porque travou!"]
@@ -208,18 +208,19 @@ def joke(msg):
 
 @bot.message_handler(commands=['q'])
 def quiz(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
-    perguntas = ["🌸 Qual linguagem usamos aqui? (Python/Java)",
-                 "🌸 Qual bot você está usando? (KaoriBot/Outro)"]
-    bot.send_message(msg.chat.id,random.choice(perguntas))
+    perguntas = [
+        ("🌸 Qual linguagem usamos aqui? (Python/Java)", "💡 Dica: Responda apenas com a palavra correta, ex: Python"),
+        ("🌸 Qual bot você está usando? (KaoriBot/Outro)", "💡 Dica: Responda apenas com KaoriBot ou Outro")
+    ]
+    pergunta,dica = random.choice(perguntas)
+    bot.send_message(msg.chat.id,f"{pergunta}\n{dica}")
 
-# Administração
+# ─── ADMINISTRATIVO ───
 @bot.message_handler(commands=['pin'])
 def pin(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     if msg.reply_to_message:
         bot.pin_chat_message(msg.chat.id,msg.reply_to_message.message_id)
@@ -227,36 +228,26 @@ def pin(msg):
 
 @bot.message_handler(commands=['unpin'])
 def unpin(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     add_xp(msg.from_user.id)
     bot.unpin_chat_message(msg.chat.id)
     bot.send_message(msg.chat.id,"📎 Todas as mensagens foram desafixadas 🌸")
 
-# ─── STATS COMPLETO / STATUS ───
+# ─── STATUS COMPLETO / STATS ───
 @bot.message_handler(commands=['stats','status'])
 def full_stats(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     user_id = msg.from_user.id
     xp = user_xp.get(user_id,0)
     bar = xp_bar(xp)
-
-    # uptime
-    uptime_sec = int(time.time() - start_time)
-    h = uptime_sec // 3600
-    m = (uptime_sec % 3600) // 60
-    s = uptime_sec % 60
-
-    # ping
-    start_ping = time.time()
-    ping_ms = round((time.time() - start_ping)*1000)
+    up = uptime()
+    ping_ms = measure_ping(msg.chat.id)
 
     text = f"""
 ╭━━━🌸 *KAORI BOT STATUS* 🌸━━━╮
 
 ⏱ Uptime
-┃ {h}h {m}m {s}s
+┃ {up}
 
 📡 Ping
 ┃ {ping_ms} ms
@@ -269,6 +260,9 @@ def full_stats(msg):
 
 ⭐ XP
 ┃ {bar}
+
+🤖 BOT XP
+┃ {BOT_XP_BAR} {BOT_LEVEL_NAME}
 
 ╰━━━━━━━━━━━━━━━━━━━━╯
 """
@@ -288,12 +282,12 @@ def desativar_bot(msg):
     bot_ativo = False
     bot.send_message(msg.chat.id,"🌸 KaoriBot foi desativada!")
 
-# ─── BOAS VINDAS AUTOMÁTICAS ───
+# ─── BOAS-VINDAS AUTOMÁTICAS ───
 @bot.message_handler(content_types=['new_chat_members'])
 def welcome(msg):
-    if not bot_ativo:
-        return
+    if not bot_ativo: return
     for user in msg.new_chat_members:
+        add_xp(user.id)
         bot.send_message(msg.chat.id,
             f"🌸 Bem-vindo(a) {user.first_name}!\n"
             "Seja bem-vindo(a) ao grupo da KaoriBot 🧩✨\n"
@@ -308,5 +302,7 @@ def welcome(msg):
             pass
 
 # ─── INICIAR BOT ───
-print("🌸 KaoriBot v2.3 está online!")
+print("🌸✨ KaoriBot v2.4 está online! ✨🌸\n"
+      "🧩 Pronta para diversão, figurinhas e surpresas!\n"
+      "💌 Use /m para ver todos os meus comandos fofinhos!")
 bot.infinity_polling()
