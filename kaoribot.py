@@ -1,308 +1,348 @@
 import telebot
-from telebot import types
 import random
-import time
-import os
+import json
+from datetime import datetime, timedelta
 
-# ─── CONFIGURAÇÃO DO BOT ───
-TOKEN = os.getenv("BOT_TOKEN") or "8791892359:AAHgDmGvBNBueRDm5vwdZmT9Hjj1_LGhaTI"
+TOKEN = "8791892359:AAHgDmGvBNBueRDm5vwdZmT9Hjj1_LGhaTI"
+CREATOR_ID = 7659474646  # substitua pelo seu ID
 bot = telebot.TeleBot(TOKEN)
 
-BOT_VERSION = "2.0"
-CREATOR = "Nikuu"
-start_time = time.time()
+# ===============================
+# Status do bot e funcionalidades
+# ===============================
+welcome_active = True       # Boas-vindas automática
+links_block_active = False  # Bloqueio de links automático
 
-# ─── XP E NÍVEL DOS USUÁRIOS ───
-user_xp = {}  # {user_id: xp}
+# ===============================
+# Dados RPG e Usuários
+# ===============================
+try:
+    with open("rpg_data.json", "r") as f:
+        data = json.load(f)
+except FileNotFoundError:
+    data = {}
 
-def add_xp(user_id, amount=1):
-    xp = user_xp.get(user_id,0)
-    xp += amount
-    user_xp[user_id] = xp
-    return xp
+def init_user(user_id):
+    if str(user_id) not in data:
+        data[str(user_id)] = {
+            "xp": 0,
+            "level": 0,
+            "coins": 15000 if user_id == CREATOR_ID else 0,
+            "last_daily": None,
+            "inventory": [],
+            "missao": None,
+            "last_missao": None
+        }
 
-def get_level(xp):
-    return xp // 10  # cada 10 XP = 1 nível
+def save_data():
+    with open("rpg_data.json", "w") as f:
+        json.dump(data, f, indent=4)
 
-def xp_bar(xp):
-    level = get_level(xp)
-    xp_in_level = xp % 10
-    total_slots = 10
-    filled = "█" * xp_in_level
-    empty = "░" * (total_slots - xp_in_level)
-    return f"[{filled}{empty}] Lvl {level}"
+def add_xp(user_id, amount):
+    init_user(user_id)
+    total_xp = amount
+    if "amuleto" in data[str(user_id)]["inventory"]:
+        total_xp += int(amount * 0.2)
+    data[str(user_id)]["xp"] += total_xp
+    while data[str(user_id)]["xp"] >= (data[str(user_id)]["level"] + 1) * 100:
+        data[str(user_id)]["xp"] -= (data[str(user_id)]["level"] + 1) * 100
+        data[str(user_id)]["level"] += 1
+    save_data()
 
-# ─── NÍVEL DO BOT (DEUS CÓSMICO) ───
-BOT_XP = 10000
-BOT_LEVEL_NAME = "🌌 DEUS CÓSMICO 🌌"
-BOT_XP_BAR = "[██████████] Lvl MAX"
+def add_coins(user_id, amount):
+    init_user(user_id)
+    total = amount
+    if "moedinha" in data[str(user_id)]["inventory"]:
+        total += int(amount * 0.2)
+    data[str(user_id)]["coins"] += total
+    save_data()
 
-# ─── STATUS DO BOT ───
-bot_ativo = True
+# ===============================
+# Funções RPG / Economia
+# ===============================
+loja = {
+    "espada": 100,
+    "escudo": 80,
+    "poção": 50,
+    "amuleto": 200,
+    "moedinha": 150
+}
 
-# ─── MENU COMPLETO ───
-def menu_text():
-    return f"""
-╭━━━🌸 *MENU KAORI BOT* 🌸━━━╮
+def daily(user_id):
+    init_user(user_id)
+    now = datetime.now()
+    last = data[str(user_id)]["last_daily"]
+    if last:
+        last_dt = datetime.fromisoformat(last)
+        if now - last_dt < timedelta(hours=24):
+            return f"Você já pegou sua recompensa diária! Volte em {24 - (now - last_dt).seconds//3600}h."
+    reward = random.randint(50, 150)
+    add_coins(user_id, reward)
+    data[str(user_id)]["last_daily"] = now.isoformat()
+    save_data()
+    return f"Você recebeu {reward} coins no /daily!"
 
-👤 Usuários
-/s → Criar figurinhas
-/m → Abrir menu
-/h → Dicas e surpresas
-/i → Informações
-/id → Ver seu ID
-/p → Ver seu perfil
-/a → Ver avatar
+def missao(user_id):
+    init_user(user_id)
+    now = datetime.now()
+    last = data[str(user_id)]["last_missao"]
+    if last:
+        last_dt = datetime.fromisoformat(last)
+        if now - last_dt < timedelta(hours=24):
+            return "Você já completou a missão de hoje!"
+    xp_bonus = random.randint(20, 50)
+    coin_bonus = random.randint(30, 70)
+    add_xp(user_id, xp_bonus)
+    add_coins(user_id, coin_bonus)
+    data[str(user_id)]["last_missao"] = now.isoformat()
+    save_data()
+    return f"Missão diária completada! Ganhou {xp_bonus} XP e {coin_bonus} coins!"
 
-🎮 Diversão
-/d → Número aleatório
-/e → Repetir mensagem
-/r → Resposta aleatória
-/f → Brincadeiras (forca)
-/c → Cara ou coroa
-/ro → Rolar dado grande
-/j → Contar piada
-/q → Quiz aleatório
+def minerar(user_id):
+    xp_gain = random.randint(10, 30)
+    coins_gain = random.randint(20, 50)
+    add_xp(user_id, xp_gain)
+    add_coins(user_id, coins_gain)
+    return f"Você minerou {coins_gain} coins e ganhou {xp_gain} XP!"
 
-🛡 Administração
-/pin → Fixar mensagem respondida
-/unpin → Desafixar mensagem
-
-🤖 Bot
-/start → Iniciar bot
-/stats → Status completo
-/ping → Verificar se estou online
-/up → Uptime do bot
-/status → Status completo
-/ativar → Ativar bot
-/desativar → Desativar bot
-
-╰━━━━━━━━━━━━━━━━━━━━╯
-"""
-
-# ─── FUNÇÕES AUXILIARES ───
-def uptime():
-    uptime_sec = int(time.time() - start_time)
-    h = uptime_sec // 3600
-    m = (uptime_sec % 3600) // 60
-    s = uptime_sec % 60
-    return f"{h}h {m}m {s}s"
-
-def measure_ping(chat_id):
-    start_ping = time.time()
-    bot.send_chat_action(chat_id, 'typing')
-    ping_ms = int((time.time() - start_ping) * 1000)
-    return ping_ms
-
-# ─── COMANDOS ───
-@bot.message_handler(commands=['start'])
-def start(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    bot.send_message(msg.chat.id,
-        f"🌸 Olá {msg.from_user.first_name}!\n"
-        f"Eu sou a *KaoriBot v{BOT_VERSION}*\n"
-        "Use /m para ver meus comandos ✨",parse_mode="Markdown")
-
-@bot.message_handler(commands=['m'])
-def menu(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    bot.send_message(msg.chat.id, menu_text(),parse_mode="Markdown")
-
-@bot.message_handler(commands=['h'])
-def tips(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    dicas = ["🌸 Dica do dia: Seja paciente!", 
-             "🌸 Dica do dia: Respire fundo antes de agir.", 
-             "🌸 Dica do dia: Ajude alguém hoje!"]
-    bot.send_message(msg.chat.id, random.choice(dicas))
-
-@bot.message_handler(commands=['i'])
-def info(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    bot.send_message(msg.chat.id,
-                     f"🌸 KaoriBot v{BOT_VERSION}\nBot de diversão e utilidades")
-
-@bot.message_handler(commands=['id'])
-def user_id(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    bot.send_message(msg.chat.id,f"🆔 Seu ID: `{msg.from_user.id}`",parse_mode="Markdown")
-
-@bot.message_handler(commands=['p'])
-def perfil(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    username = msg.from_user.username
-    username = "@"+username if username else "sem username"
-    bot.send_message(msg.chat.id,
-        f"╭━━━👤 PERFIL ━━━╮\nNome: {msg.from_user.first_name}\nUsuário: {username}\nID: {msg.from_user.id}\n╰━━━━━━━━━━━━╯",
-        parse_mode="Markdown")
-
-@bot.message_handler(commands=['a'])
-def avatar(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    photos = bot.get_user_profile_photos(msg.from_user.id)
-    if photos.total_count > 0:
-        file_id = photos.photos[0][-1].file_id
-        bot.send_photo(msg.chat.id, file_id, caption="🌸 Seu avatar")
+def saquear(user_id, target_id):
+    init_user(user_id)
+    init_user(target_id)
+    if data[str(target_id)]["coins"] <= 0:
+        return "O usuário não tem coins para saquear!"
+    chance = 50
+    if "espada" in data[str(user_id)]["inventory"]:
+        chance += 15
+    if "escudo" in data[str(target_id)]["inventory"]:
+        chance -= 15
+    chance = min(max(chance, 5), 95)
+    roll = random.randint(1, 100)
+    if roll <= chance:
+        stolen = random.randint(1, min(50, data[str(target_id)]["coins"]))
+        data[str(target_id)]["coins"] -= stolen
+        data[str(user_id)]["coins"] += stolen
+        save_data()
+        return f"Sucesso! Você roubou {stolen} coins do usuário."
     else:
-        bot.send_message(msg.chat.id,"Você não possui foto.")
+        return "Falhou no saque! Tente novamente mais tarde."
 
-# ─── DIVERSÃO ───
-@bot.message_handler(commands=['d'])
-def dado(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    bot.send_message(msg.chat.id,f"🎲 Número aleatório: {random.randint(1,6)}")
+def perfil(user_id):
+    init_user(user_id)
+    u = data[str(user_id)]
+    return f"Perfil:\nLevel: {u['level']}\nXP: {u['xp']}\nCoins: {u['coins']}\nItens: {', '.join(u['inventory']) if u['inventory'] else 'Nenhum'}"
 
-@bot.message_handler(commands=['e'])
-def echo(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    text = msg.text.replace("/e","").strip()
-    if not text:
-        bot.send_message(msg.chat.id,"💡 Dica: Use /e seguido do que deseja que eu repita. Ex: `/e Olá!`")
-    else:
-        bot.send_message(msg.chat.id,f"💬 {text}")
+def ver_loja():
+    itens = [f"{item}: {preco} coins" for item, preco in loja.items()]
+    return "Loja:\n" + "\n".join(itens)
 
-@bot.message_handler(commands=['r'])
-def random_reply(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    respostas = ["🌸 Sim!", "🌸 Não!", "🌸 Talvez…", "🌸 Com certeza!", "🌸 Pergunte novamente."]
-    bot.send_message(msg.chat.id, random.choice(respostas))
+def comprar(user_id, item):
+    init_user(user_id)
+    if item not in loja:
+        return "Item não existe na loja!"
+    preco = loja[item]
+    if data[str(user_id)]["coins"] < preco:
+        return "Você não tem coins suficientes!"
+    data[str(user_id)]["coins"] -= preco
+    data[str(user_id)]["inventory"].append(item)
+    save_data()
+    return f"Você comprou {item}!"
 
-@bot.message_handler(commands=['f'])
-def forca(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    palavras = ["Kaori","Bot","Telegram","Python","Railway"]
-    palavra = random.choice(palavras).upper()
-    bot.send_message(msg.chat.id,
-        f"🎯 Palavra escolhida (demo): {palavra}\n💡 Dica: Este é um teste, tente adivinhar letras em versões futuras!")
+def vender(user_id, item):
+    init_user(user_id)
+    if item not in data[str(user_id)]["inventory"]:
+        return "Você não possui esse item!"
+    preco = loja.get(item, 10) // 2
+    data[str(user_id)]["inventory"].remove(item)
+    data[str(user_id)]["coins"] += preco
+    save_data()
+    return f"Você vendeu {item} por {preco} coins!"
 
-@bot.message_handler(commands=['c'])
-def coin(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    bot.send_message(msg.chat.id,f"🪙 {random.choice(['Cara','Coroa'])}")
+def rank():
+    ranking = sorted(data.items(), key=lambda x: (x[1]["level"], x[1]["coins"]), reverse=True)
+    msg = "🏆 Ranking do grupo:\n"
+    for i, (uid, u) in enumerate(ranking[:10], 1):
+        msg += f"{i}. ID:{uid} - Level:{u['level']} XP:{u['xp']} Coins:{u['coins']}\n"
+    return msg
 
-@bot.message_handler(commands=['ro'])
-def roll(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    bot.send_message(msg.chat.id,f"🎲 Rolagem grande: {random.randint(1,20)}")
-
-@bot.message_handler(commands=['j'])
-def joke(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    piadas = ["🌸 Por que o gato mia? Porque está com fome!", 
-              "🌸 Por que o bot foi ao médico? Porque travou!"]
-    bot.send_message(msg.chat.id,random.choice(piadas))
-
-@bot.message_handler(commands=['q'])
-def quiz(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    perguntas = [
-        ("🌸 Qual linguagem usamos aqui? (Python/Java)", "💡 Dica: Responda apenas com a palavra correta, ex: Python"),
-        ("🌸 Qual bot você está usando? (KaoriBot/Outro)", "💡 Dica: Responda apenas com KaoriBot ou Outro")
-    ]
-    pergunta,dica = random.choice(perguntas)
-    bot.send_message(msg.chat.id,f"{pergunta}\n{dica}")
-
-# ─── ADMINISTRATIVO ───
-@bot.message_handler(commands=['pin'])
-def pin(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    if msg.reply_to_message:
-        bot.pin_chat_message(msg.chat.id,msg.reply_to_message.message_id)
-        bot.send_message(msg.chat.id,"📌 Mensagem fixada 🌸")
-
-@bot.message_handler(commands=['unpin'])
-def unpin(msg):
-    if not bot_ativo: return
-    add_xp(msg.from_user.id)
-    bot.unpin_chat_message(msg.chat.id)
-    bot.send_message(msg.chat.id,"📎 Todas as mensagens foram desafixadas 🌸")
-
-# ─── STATUS COMPLETO / STATS ───
-@bot.message_handler(commands=['stats','status'])
-def full_stats(msg):
-    if not bot_ativo: return
-    user_id = msg.from_user.id
-    xp = user_xp.get(user_id,0)
-    bar = xp_bar(xp)
-    up = uptime()
-    ping_ms = measure_ping(msg.chat.id)
-
-    text = f"""
-╭━━━🌸 *KAORI BOT STATUS* 🌸━━━╮
-
-⏱ Uptime
-┃ {up}
-
-📡 Ping
-┃ {ping_ms} ms
-
-🧠 Versão
-┃ v{BOT_VERSION}
-
-👤 Criador
-┃ {CREATOR}
-
-⭐ XP
-┃ {bar}
-
-🤖 BOT XP
-┃ {BOT_XP_BAR} {BOT_LEVEL_NAME}
-
-╰━━━━━━━━━━━━━━━━━━━━╯
-"""
-    bot.send_message(msg.chat.id,text,parse_mode="Markdown")
-    add_xp(user_id)
-
-# ─── ATIVAR / DESATIVAR BOT ───
-@bot.message_handler(commands=['ativar'])
-def ativar_bot(msg):
-    global bot_ativo
-    bot_ativo = True
-    bot.send_message(msg.chat.id,"🌸 KaoriBot foi ativada!")
-
-@bot.message_handler(commands=['desativar'])
-def desativar_bot(msg):
-    global bot_ativo
-    bot_ativo = False
-    bot.send_message(msg.chat.id,"🌸 KaoriBot foi desativada!")
-
-# ─── BOAS-VINDAS AUTOMÁTICAS ───
-@bot.message_handler(content_types=['new_chat_members'])
-def welcome(msg):
-    if not bot_ativo: return
-    for user in msg.new_chat_members:
-        add_xp(user.id)
-        bot.send_message(msg.chat.id,
+# ===============================
+# Boas-vindas automáticas e bloqueio de links
+# ===============================
+@bot.message_handler(content_types=["new_chat_members"])
+def welcome_new_member(message):
+    global welcome_active
+    if not welcome_active:
+        return
+    for user in message.new_chat_members:
+        init_user(user.id)
+        add_xp(user.id, 10)
+        add_coins(user.id, 50)
+        bot.send_message(message.chat.id,
             f"🌸 Bem-vindo(a) {user.first_name}!\n"
-            "Seja bem-vindo(a) ao grupo da KaoriBot 🧩✨\n"
-            "Digite /m para ver meus comandos."
+            f"Você recebeu 10 XP e 50 coins de boas-vindas!\n"
+            f"Use /dica para ver todos os comandos e /perfil para ver seu RPG."
         )
-        try:
-            photos = bot.get_user_profile_photos(user.id)
-            if photos.total_count > 0:
-                file_id = photos.photos[0][-1].file_id
-                bot.send_photo(msg.chat.id, file_id, caption=f"🌸 Este é você, {user.first_name}!")
-        except:
-            pass
 
-# ─── INICIAR BOT ───
-print("🌸✨ KaoriBot v2.4 está online! ✨🌸\n"
-      "🧩 Pronta para diversão, figurinhas e surpresas!\n"
-      "💌 Use /m para ver todos os meus comandos fofinhos!")
+@bot.message_handler(func=lambda m: links_block_active and m.text and ("http://" in m.text or "https://" in m.text))
+def block_links(message):
+    bot.reply_to(message, "🚫 Links não são permitidos neste grupo! Usuário banido.")
+    try:
+        bot.kick_chat_member(message.chat.id, message.from_user.id)
+    except:
+        bot.reply_to(message, "Não foi possível banir o usuário (verifique permissões).")
+
+# ===============================
+# Comandos /start, /menu, /info, /dica
+# ===============================
+@bot.message_handler(commands=["start", "s"])
+def cmd_start(message):
+    user_id = message.from_user.id
+    init_user(user_id)
+    u = data[str(user_id)]
+    start_text = f"""
+🌸 Olá, {message.from_user.first_name}! Bem-vindo(a) ao KaoriBot 🌸
+
+🎮 Seu perfil inicial:
+├ Level: {u['level']}
+├ XP: {u['xp']}
+├ Coins: {u['coins']}
+├ Itens: {', '.join(u['inventory']) if u['inventory'] else 'Nenhum'}
+
+💡 Comandos úteis para começar:
+├ /menu → Ver o menu completo
+├ /dica → Aprender como usar cada comando
+├ /perfil → Ver suas stats e inventário
+├ /fig → Criar figurinhas
+
+Divirta-se explorando jogos, RPG, moderação e diversão! 🌟
+"""
+    bot.reply_to(message, start_text)
+
+@bot.message_handler(commands=["menu"])
+def cmd_menu(message):
+    menu_text = f"""
+╭━━━━━━━━━━━━━━━🌸 KAORI BOT 🌸━━━━━━━━━━━━━━━╮
+👤 Usuário
+├ /start (s) → Iniciar o bot
+├ /id → Ver seu ID
+├ /perfil → Ver seu perfil RPG
+├ /avatar → Ver avatar
+├ /menu → Abrir menu completo
+├ /info → Informações detalhadas do bot
+├ /dica → Como usar todos os comandos
+├ /prefixo → Mostra os atalhos e prefixos do bot
+├ /fig → Criar figurinhas
+
+🎮 Diversão & Jogos
+├ /numero (n) → Número aleatório
+├ /repetir (rm) → Repetir mensagem
+├ /resposta (r) → Resposta aleatória
+├ /forca (f) → Jogo da forca
+├ /caraoucoroa (c) → Cara ou coroa
+├ /rolardado (ro) → Rolar dado grande
+├ /piada (p) → Contar piada
+├ /quiz (q) → Quiz aleatório
+
+🎲 RPG & Economia
+├ /perfil → Stats, coins e inventário
+├ /daily (d) → Recompensa diária
+├ /missao → Missão diária
+├ /rank → Ranking de XP e coins
+├ /saquear @usuario → Roubar coins
+├ /minerar → Ganhar coins e XP
+├ /loja → Ver itens da loja
+├ /comprar [item] → Comprar item
+├ /vender [item] → Vender item
+
+🛡 Moderação & Administração
+├ /pin → Fixar mensagem
+├ /unpin → Desafixar mensagem
+├ /ban → Banir usuário
+├ /kick → Expulsar usuário
+├ /mute → Silenciar usuário
+├ /unmute → Liberar usuário silenciado
+├ /ativarbemvindo (abv) → Ativar mensagem de boas-vindas
+├ /desativarbemvindo (dbv) → Desativar mensagem de boas-vindas
+├ /ativarlinks (al) → Ativar bloqueio de links
+├ /desativarlinks (dl) → Desativa bloqueio de links
+
+🤖 Bot & Status
+├ /status → Status completo do bot
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+"""
+    bot.reply_to(message, menu_text)
+
+@bot.message_handler(commands=["info"])
+def cmd_info(message):
+    info_text = f"""
+╭━━━━━━━━━━━━━━━🌸 INFORMAÇÕES KAORI BOT 🌸━━━━━━━━━━━━━━━╮
+🤖 Nome: KaoriBot
+🧠 Versão: v2.0 – RPG & Diversão Integrados
+👤 Criador: Nikuu
+🌐 Funcionalidades:
+├ Comandos básicos e diversão
+├ Sistema RPG com XP, coins, itens, loja e missões
+├ Moderação de grupos (ban/kick/mute/unmute)
+├ Bloqueio de links e mensagem de boas-vindas
+├ Mini jogos: forca, cara ou coroa, rolar dados, quizzes
+💎 Especial:
+├ Criador inicia com 15.000 coins
+├ Itens podem dar bônus em XP e coins
+└ Saques e mineração com chances aleatórias
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+"""
+    bot.reply_to(message, info_text)
+
+@bot.message_handler(commands=["dica"])
+def cmd_dica(message):
+    dica_text = f"""
+╭━━━━━━━━━━━━━━🌸 GUIA DE COMANDOS KAORI BOT 🌸━━━━━━━━━━━━━━╮
+👤 Usuário
+├ /start (s) → Inicia o bot e ativa seu perfil RPG
+├ /id → Mostra seu ID no Telegram
+├ /perfil → Mostra seu perfil RPG (Level, XP, coins e inventário)
+├ /avatar → Mostra sua foto de perfil
+├ /menu → Mostra o menu completo
+├ /info → Detalhes sobre o bot
+├ /prefixo → Mostra atalhos
+├ /fig → Cria figurinhas
+
+🎮 Diversão & Jogos
+├ /numero (n) → Número aleatório
+├ /repetir (rm) → Repete a mensagem enviada
+├ /resposta (r) → Responde aleatoriamente à sua pergunta
+├ /forca (f) → Joga o jogo da forca
+├ /caraoucoroa (c) → Cara ou coroa
+├ /rolardado (ro) → Rola um dado grande
+├ /piada (p) → Conta uma piada aleatória
+├ /quiz (q) → Pergunta de quiz
+
+🎲 RPG & Economia
+├ /perfil → Stats, coins e inventário
+├ /daily (d) → Recompensa diária
+├ /missao → Missão diária
+├ /rank → Ranking
+├ /saquear @usuario → Roubar coins
+├ /minerar → Ganhar coins e XP
+├ /loja → Ver itens
+├ /comprar [item] → Comprar item
+├ /vender [item] → Vender item
+
+🛡 Moderação & Administração
+├ /pin → Fixar mensagem
+├ /unpin → Desafixar mensagem
+├ /ban → Banir usuário
+├ /kick → Expulsar usuário
+├ /mute → Silenciar usuário
+├ /unmute → Liberar usuário
+├ /ativarbemvindo (abv) → Ativar boas-vindas
+├ /desativarbemvindo (dbv) → Desativar boas-vindas
+├ /ativarlinks (al) → Ativar bloqueio de links
+├ /desativarlinks (dl) → Desativar bloqueio de links
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+"""
+    bot.reply_to(message, dica_text)
+
+# ===============================
+# Rodar bot
+# ===============================
 bot.infinity_polling()
