@@ -2,6 +2,8 @@
 import telebot
 import os
 import time
+from PIL import Image
+import io
 
 # Pega token do Railway
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -20,19 +22,24 @@ def register_command(name, description):
 # --- /start ---
 @bot.message_handler(commands=['start'])
 def start(msg):
-    bot.send_message(msg.chat.id, "🌸 Olá! Eu sou a KaoriBot!\nUse /m para ver todos os comandos.")
+    bot.send_message(msg.chat.id, "🌸 Olá! Eu sou a KaoriBot!\nUse /menu para ver todos os comandos.")
 register_command('start', 'Iniciar o bot')
 
-# --- /m /menu ---
-@bot.message_handler(commands=['m','menu'])
+# --- /menu (menu fofo reformulado) ---
+@bot.message_handler(commands=['menu'])
 def menu(msg):
-    texto = "╭━━━━━━🌸 KAORI BOT 🌸━━━━━━╮\n"
-    for cmd, desc in COMMANDS_INFO.items():
-        texto += f"├ /{cmd} → {desc}\n"
-    texto += "╰━━━━━━━━━━━━━━━━━━━━━━╯"
+    texto = f"""
+╭━━━━━━━━━━━━━━━🌸 KAORI BOT 🌸━━━━━━━━━━━━━━━╮
+👤 Usuário
+├ /start → Iniciar o bot
+├ /ping → Ver ping do bot
+├ /fixar → Fixar mensagem (responda a mensagem)
+├ /info → Informações do bot
+├ /fig → Criar figurinha ꒰ᐢ. .ᐢ꒱₊˚⊹
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+"""
     bot.send_message(msg.chat.id, texto)
-register_command('m', 'Abrir menu de comandos')
-register_command('menu', 'Abrir menu de comandos')
+register_command('menu', 'Abrir menu completo fofo')
 
 # --- /ping ---
 @bot.message_handler(commands=['ping'])
@@ -60,23 +67,57 @@ register_command('fixar', 'Fixar mensagem (responda a mensagem)')
 # --- /info ---
 @bot.message_handler(commands=['info'])
 def info(msg):
-    texto = """
+    texto = f"""
 🌸 KaoriBot Info:
 
 Versão: 1.0
 Criador: Você
 Hospedagem: Railway
 Biblioteca: pyTelegramBotAPI
+
+Rostinho fofo: ꒰ᐢ. .ᐢ꒱₊˚⊹
 """
     bot.send_message(msg.chat.id, texto)
 register_command('info', 'Informações do bot')
 
-# --- Exemplo de comando extra ---
-@bot.message_handler(commands=['hello'])
-def hello(msg):
-    bot.send_message(msg.chat.id, "Olá! 🌸 Comando extra funcionando!")
-register_command('hello', 'Teste de novo comando')
+# --- /fig para criar figurinhas de qualquer tamanho ---
+@bot.message_handler(content_types=['photo'])
+def foto_para_figura(msg):
+    if msg.caption and msg.caption.lower() == "/fig":
+        try:
+            file_id = msg.photo[-1].file_id  # maior resolução
+            file_info = bot.get_file(file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+
+            # Abre a imagem com Pillow
+            image = Image.open(io.BytesIO(downloaded_file)).convert("RGBA")
+
+            # Redimensiona mantendo proporção
+            max_size = 512
+            width, height = image.size
+            ratio = min(max_size / width, max_size / height)
+            new_width = int(width * ratio)
+            new_height = int(height * ratio)
+            image = image.resize((new_width, new_height), Image.ANTIALIAS)
+
+            # Cria canvas 512x512 com fundo transparente
+            final_image = Image.new("RGBA", (512, 512), (0,0,0,0))
+            final_image.paste(image, ((512 - new_width) // 2, (512 - new_height) // 2), image)
+
+            # Salva em memória
+            bio = io.BytesIO()
+            bio.name = "sticker.png"
+            final_image.save(bio, "PNG")
+            bio.seek(0)
+
+            # Envia como figurinha
+            bot.send_sticker(msg.chat.id, bio)
+
+        except Exception as e:
+            bot.send_message(msg.chat.id, f"⚠️ Erro ao criar figurinha: {e}")
+
+register_command('fig', 'Criar figurinha a partir de imagem (qualquer tamanho, use /fig na legenda)')
 
 # --- Inicialização ---
-print("Kaori está online! ꒰ᐢ. .ᐢ꒱₊˚⊹ 🌸")
+print("KaoriBot está online 🌸")
 bot.infinity_polling()
