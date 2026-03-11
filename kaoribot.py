@@ -3,11 +3,12 @@ import telebot
 import os
 import time
 
-TOKEN = os.getenv("TOKEN")
-if not TOKEN:
-    raise ValueError("⚠️ Token não definido! Crie a variável TOKEN no Railway.")
+# Pega o token do bot da variável BOT_TOKEN
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+if not BOT_TOKEN:
+    raise ValueError("⚠️ Token não definido! Crie uma variável BOT_TOKEN no Railway com o token do BotFather.")
 
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(BOT_TOKEN)
 
 # --- Comando /start ---
 @bot.message_handler(commands=['start'])
@@ -48,10 +49,7 @@ def fixar(msg):
         "📌 Mensagem fixada pela Kaori 🌸"
     )
     try:
-        bot.pin_chat_message(
-            msg.chat.id,
-            mensagem.message_id
-        )
+        bot.pin_chat_message(msg.chat.id, mensagem.message_id)
     except Exception as e:
         bot.send_message(msg.chat.id, f"⚠️ Não consegui fixar: {e}")
 
