@@ -229,20 +229,23 @@ def play(msg):
 
         ydl_opts = {
             'format': 'bestaudio/best',
-            'outtmpl': '%(title)s.%(ext)s',
+            'outtmpl': 'music.%(ext)s',
             'noplaylist': True,
             'quiet': True,
-            'default_search': 'scsearch1'
+            'default_search': 'ytsearch1',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192'
+            }]
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-
             info = ydl.extract_info(query, download=True)
 
-            filename = ydl.prepare_filename(info)
+        filename = "music.mp3"
 
         with open(filename, 'rb') as audio:
-
             kaori.send_audio(
                 msg.chat.id,
                 audio,
