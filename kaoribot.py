@@ -197,14 +197,14 @@ def play(msg):
     status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
 
     try:
-        # garante que as pastas existam
+        # garante que a pasta music exista
         os.makedirs("music", exist_ok=True)
 
-        # comando SpotDL CLI
-        cmd = f"spotdl {shlex.quote(query)} --output music/audio.mp3 --overwrite"
+        # comando SpotDL CLI atualizado para buscar pelo nome ou link
+        cmd = f"spotdl {shlex.quote(query)} --output music/audio.mp3 --overwrite --default-search ytsearch"
         subprocess.run(cmd, shell=True, check=True)
 
-        # envia áudio
+        # envia o áudio para o chat
         with open("music/audio.mp3","rb") as audio:
             kaori.send_audio(msg.chat.id, audio, title=query)
 
