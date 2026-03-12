@@ -164,24 +164,49 @@ def sticker(msg):
 # -------------------------
 @kaori.message_handler(commands=['play'])
 def play(msg):
+
     query = msg.text.replace("/play","").strip()
+
     if not query:
-        kaori.reply_to(msg, "🌻 Use:\n/play nome da música")
+        kaori.reply_to(msg,"🌻 Use:\n/play nome da música")
         return
 
     status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
 
     try:
-        subprocess.run(f"spotdl '{query}' --output music.mp3", shell=True, check=True)
 
-        with open("music.mp3","rb") as audio:
-            kaori.send_audio(msg.chat.id, audio, title=query)
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': 'music.%(ext)s',
+            'noplaylist': True,
+            'quiet': True,
+            'default_search': 'ytsearch1',
+        }
 
-        os.remove("music.mp3")
-        kaori.edit_message_text(f"🎵 Música enviada: {query}", msg.chat.id, status.message_id)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(query, download=True)
+
+            file_name = ydl.prepare_filename(info)
+            title = info['title']
+
+        with open(file_name, 'rb') as audio:
+            kaori.send_audio(msg.chat.id, audio, title=title)
+
+        os.remove(file_name)
+
+        kaori.edit_message_text(
+            f"🎵 Música enviada:\n{title}",
+            msg.chat.id,
+            status.message_id
+        )
 
     except Exception as e:
-        kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
+
+        kaori.edit_message_text(
+            f"⚠️ Erro ao baixar música:\n{e}",
+            msg.chat.id,
+            status.message_id
+        )
 
 # -------------------------
 # PIN
