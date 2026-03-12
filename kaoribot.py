@@ -6,21 +6,22 @@ import io
 from PIL import Image
 import random
 import openai
+import yt_dlp
 
 # =========================
 # Configurações
 # =========================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-OPENAI_KEY = os.getenv("OPENAI_KEY")  # chave da OpenAI
+OPENAI_KEY = os.getenv("OPENAI_KEY")
 PIXABAY_KEY = os.getenv("PIXABAY_API_KEY")
 BOT_CREATOR = "@ni1ckkj"
 
 if not BOT_TOKEN:
-    raise ValueError("⚠️ BOT_TOKEN não definido no Railway.")
+    raise ValueError("⚠️ BOT_TOKEN não definido.")
 if not OPENAI_KEY:
-    raise ValueError("⚠️ OPENAI_KEY não definido no Railway.")
+    raise ValueError("⚠️ OPENAI_KEY não definido.")
 if not PIXABAY_KEY:
-    raise ValueError("⚠️ PIXABAY_API_KEY não definido no Railway.")
+    raise ValueError("⚠️ PIXABAY_API_KEY não definido.")
 
 openai.api_key = OPENAI_KEY
 kaori = telebot.TeleBot(BOT_TOKEN)
@@ -37,10 +38,7 @@ def start(msg):
 
 Hoje é um dia perfeito para explorar, se divertir e descobrir coisas mágicas.
 Aqui você pode criar figurinhas, gerar imagens incríveis, buscar fotos legais,
-brincar com comandos divertidos e muito mais! 💖
-
-Cada comando é uma pequena aventura,
-e Kaori está aqui para te guiar com fofura e alegria! 🌻
+brincar com comandos divertidos e ouvir música com Kaori! 💖
 
 Para começar, use /menu e veja tudo o que podemos fazer juntos! 🎀
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
@@ -65,11 +63,12 @@ def menu(msg):
 ├ /google → Pesquisar na web
 ├ /img → Buscar imagens (Pixabay)
 ├ /aiimg → Criar imagens IA (OpenAI)
+├ /music → Ouvir música do YouTube
 ├ /fig → Criar figurinha
 ├ /info → Informações do bot
 
 🛡 Moderação
-├ /fixar → Fixar mensagem (responda a mensagem)
+├ /fixar → Fixar mensagem
 ├ /desfixar → Desafixar mensagem
 
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
@@ -85,11 +84,7 @@ def ping(msg):
     mensagem = kaori.send_message(msg.chat.id, "🏓 Pong!")
     fim = time.time()
     ms = int((fim - inicio) * 1000)
-    kaori.edit_message_text(
-        f"🏓 Pong!\n⏱ Ping: {ms} ms",
-        msg.chat.id,
-        mensagem.message_id
-    )
+    kaori.edit_message_text(f"🏓 Pong!\n⏱ Ping: {ms} ms", msg.chat.id, mensagem.message_id)
 
 # =========================
 # /id
@@ -149,7 +144,7 @@ def img(msg):
     kaori.send_photo(msg.chat.id, foto_bytes, caption=f"🖼 Resultado para: {texto}")
 
 # =========================
-# /aiimg (OpenAI DALL·E nova API)
+# /aiimg (OpenAI DALL·E)
 # =========================
 @kaori.message_handler(commands=['aiimg'])
 def aiimg(msg):
@@ -238,15 +233,86 @@ def info(msg):
     segundos = uptime_seconds % 60
 
     texto = f"""
-🌻 Kaori v1.9.1 🌻
-Breve biografia: Sou um bot divertido para Telegram, ajudando com figurinhas, imagens, buscas e comandos fofos! 💖
+🌻 Kaori v2.0 🌻
+Breve biografia: Sou um bot divertido para Telegram, ajudando com figurinhas, imagens, buscas e música! 💖
 Criador: {BOT_CREATOR}
 Tempo online: {horas}h {minutos}m {segundos}s
 """
     kaori.send_message(msg.chat.id, texto)
 
 # =========================
+# /music (música avançada)
+# =========================
+@kaori.message_handler(commands=['music'])
+def music(msg):
+    query = msg.text.replace("/music", "").strip()
+    if not query:
+        kaori.send_message(msg.chat.id, "🌻 Use: /music <nome da música>")
+        return
+
+    msg_status = kaori.send_message(msg.chat.id, f"🌻 Procurando música: {query}...")
+
+    try:
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "noplaylist": True,
+            "quiet": True,
+            "default_search": "ytsearch1",
+            "outtmpl": "music.%(ext)s",
+            "postprocessors": [{
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }],
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(query, download=True)
+            if "entries" in info:
+                info = info["entries"][0]
+
+            titulo = info["title"]
+            duracao = info["duration"]
+            thumb = info.get("thumbnail")
+            arquivo = "music.mp3"
+
+        minutos = duracao // 60
+        segundos = duracao % 60
+
+        # envia capa
+        if thumb:
+            kaori.send_photo(
+                msg.chat.id,
+                thumb,
+                caption=f"🎵 {titulo}\n⏱ {minutos}:{segundos:02d}"
+            )
+
+        # envia áudio
+        with open(arquivo, "rb") as audio:
+            kaori.send_audio(
+                msg.chat.id,
+                audio,
+                title=titulo,
+                performer="YouTube"
+            )
+
+        os.remove(arquivo)
+
+        kaori.edit_message_text(
+            "✅ Música enviada!",
+            msg.chat.id,
+            msg_status.message_id
+        )
+
+    except Exception as e:
+        kaori.edit_message_text(
+            f"⚠️ Erro ao baixar música:\n{e}",
+            msg.chat.id,
+            msg_status.message_id
+        )
+
+# =========================
 # Iniciar Kaori
 # =========================
-print("Kaori v1.9.1 está online 🌻")
+print("Kaori v2.0 está online 🌻")
 kaori.infinity_polling(skip_pending=True)
