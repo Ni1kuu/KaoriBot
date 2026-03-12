@@ -31,9 +31,10 @@ start_time = time.time()  # tempo de início do bot
 @kaori.message_handler(commands=['start'])
 def start(msg):
     texto = """
-╭━━━━━━━━━━━━━━━🌻 BEM-VINDO(A) A KAORI 🌻━━━━━━━━━━━━━━━╮
+╭━━━━━━━━━━━━━━━🌻 BEM-VINDO(A) AO KAORI 🌻━━━━━━━━━━━━━━━╮
 ✨ Olá, viajante do Telegram!
 
+Hoje é um dia perfeito para explorar, se divertir e descobrir coisas mágicas.
 Aqui você pode criar figurinhas, gerar imagens incríveis, buscar fotos legais,
 brincar com comandos divertidos e muito mais! 💖
 
@@ -157,7 +158,7 @@ def aiimgstyle(msg):
         return
 
     estilo, prompt = map(str.strip, texto.split("|", 1))
-    aguardando = kaori.send_message(msg.chat.id, f"🌻 Gerando imagem IA no estilo '{estilo}'...")
+    msg_aguarde = kaori.send_message(msg.chat.id, f"🌻 Gerando imagem IA no estilo '{estilo}'...")
 
     estilo_map = {
         "anime": "anime, bright colors, high detail",
@@ -171,8 +172,7 @@ def aiimgstyle(msg):
     try:
         API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
         headers = {"Authorization": f"Bearer {HUGGINGFACE_KEY}"}
-        payload = {"inputs": prompt_final}
-        r = requests.post(API_URL, headers=headers, json=payload, timeout=90)
+        r = requests.post(API_URL, headers=headers, json={"inputs": prompt_final}, timeout=90)
 
         if r.status_code == 200:
             img_bytes = r.content
@@ -180,12 +180,12 @@ def aiimgstyle(msg):
             foto.name = "aiimgstyle.png"
             foto.seek(0)
             kaori.send_photo(msg.chat.id, foto, caption=f"🖼 Estilo: {estilo}\nPrompt: {prompt}")
-            kaori.edit_message_text(f"🌻 Imagem IA gerada com sucesso!", msg.chat.id, aguardando.message_id)
+            kaori.edit_message_text(f"🌻 Imagem IA gerada com sucesso!", msg.chat.id, msg_aguarde.message_id)
         else:
-            kaori.edit_message_text(f"⚠️ Não foi possível gerar imagem (status {r.status_code})", msg.chat.id, aguardando.message_id)
+            kaori.edit_message_text(f"⚠️ Não foi possível gerar imagem (status {r.status_code})", msg.chat.id, msg_aguarde.message_id)
 
     except Exception as e:
-        kaori.edit_message_text(f"⚠️ Erro ao gerar imagem: {e}", msg.chat.id, aguardando.message_id)
+        kaori.edit_message_text(f"⚠️ Erro ao gerar imagem: {e}", msg.chat.id, msg_aguarde.message_id)
 
 # =========================
 # /fixar
@@ -250,7 +250,7 @@ def info(msg):
 
     texto = f"""
 🌻 Kaori v1.8.4 🌻
-Bio: Sou um bot divertido para Telegram, ajudando com figurinhas, imagens, buscas e comandos fofos! 💖
+Breve biografia: Sou um bot divertido para Telegram, ajudando com figurinhas, imagens, buscas e comandos fofos! 💖
 Criador: {BOT_CREATOR}
 Tempo online: {horas}h {minutos}m {segundos}s
 """
