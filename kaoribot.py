@@ -2,7 +2,7 @@ import telebot
 import requests
 import time
 import os
-import subprocess
+import yt_dlp
 from PIL import Image
 
 # -------------------------
