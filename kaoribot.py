@@ -8,27 +8,43 @@ import io
 import random
 
 # =========================
-# TOKEN e Chave Pixabay
+# Configurações
 # =========================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-PIXABAY_KEY = os.getenv("PIXABAY_API_KEY")  # Coloque sua chave no Railway
+PIXABAY_KEY = os.getenv("PIXABAY_API_KEY")
+DEEPAI_KEY = os.getenv("DEEPAI_KEY")
+BOT_CREATOR = "@ni1ckkj"  # coloque seu Telegram aqui
 
 if not BOT_TOKEN:
-    raise ValueError("⚠️ Token não definido! Configure BOT_TOKEN no Railway.")
+    raise ValueError("⚠️ BOT_TOKEN não definido no Railway.")
 if not PIXABAY_KEY:
-    raise ValueError("⚠️ Chave Pixabay não definida! Configure PIXABAY_API_KEY no Railway.")
+    raise ValueError("⚠️ PIXABAY_API_KEY não definido no Railway.")
+if not DEEPAI_KEY:
+    raise ValueError("⚠️ DEEPAI_KEY não definido no Railway.")
 
 bot = telebot.TeleBot(BOT_TOKEN)
+start_time = time.time()  # marca início do bot
 
 # =========================
 # /start
 # =========================
 @bot.message_handler(commands=['start'])
 def start(msg):
-    bot.send_message(
-        msg.chat.id,
-        "🌸 Olá! Eu sou a KaoriBot!\nUse /menu para ver meus comandos."
-    )
+    texto = """
+╭━━━━━━━━━━━━━━━🌻 BEM-VINDO(A) AO KAORI BOT 🌻━━━━━━━━━━━━━━━╮
+✨ "Olá, viajante do Telegram! ✨
+
+Hoje é um dia perfeito para explorar, se divertir e descobrir coisas mágicas.
+Aqui você pode criar figurinhas, gerar imagens incríveis, buscar fotos legais,
+brincar com comandos divertidos e muito mais! 💖
+
+Não se esqueça: cada comando é uma pequena aventura,
+e KaoriBot está aqui para te guiar com fofura e alegria! 🌻
+
+Para começar, use o comando /menu e veja tudo o que podemos fazer juntos! 🎀
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+"""
+    bot.send_message(msg.chat.id, texto)
 
 # =========================
 # /menu
@@ -36,23 +52,24 @@ def start(msg):
 @bot.message_handler(commands=['menu'])
 def menu(msg):
     texto = """
-╭━━━━━━━━━━━━━━━🌸 KAORI BOT 🌸━━━━━━━━━━━━━━━╮
+╭━━━━━━━━━━━━━━━🌻 KAORI BOT 🌻━━━━━━━━━━━━━━━╮
 
 👤 Usuário
-├ /start → Iniciar o bot
-├ /ping → Ver ping
+├ /start → Mensagem de boas-vindas
+├ /ping → Ver ping em ms
 ├ /id → Ver seu ID
-├ /avatar → Ver foto de perfil
+├ /avatar → Ver sua foto de perfil
 
 🌐 Utilidades
 ├ /google → Pesquisar na web
 ├ /img → Buscar imagens (Pixabay)
+├ /aiimg → Criar imagens IA seguras
 ├ /fig → Criar figurinha
 ├ /info → Informações do bot
 
 🛡 Moderação
-├ /fixar → Fixar mensagem (responda)
-├ /desfixar → Remover mensagem fixada
+├ /fixar → Fixar mensagem (responda a mensagem)
+├ /desfixar → Desafixar mensagem
 
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
 """
@@ -78,12 +95,7 @@ def ping(msg):
 # =========================
 @bot.message_handler(commands=['id'])
 def id_usuario(msg):
-    texto = f"""
-🆔 Informações
-
-👤 Seu ID: {msg.from_user.id}
-💬 Chat ID: {msg.chat.id}
-"""
+    texto = f"🆔 Seu ID: {msg.from_user.id}\n💬 Chat ID: {msg.chat.id}"
     bot.send_message(msg.chat.id, texto)
 
 # =========================
@@ -107,19 +119,12 @@ def avatar(msg):
 @bot.message_handler(commands=['google'])
 def google(msg):
     texto = msg.text.replace("/google", "").strip()
-    if texto == "":
-        bot.send_message(msg.chat.id, "Use:\n/google assunto")
+    if not texto:
+        bot.send_message(msg.chat.id, "Use:\n/google <termo de pesquisa>")
         return
     query = urllib.parse.quote(texto)
     link = f"https://www.google.com/search?q={query}"
-    resposta = f"""
-🔎 Pesquisa no Google
-
-📌 {texto}
-
-🌐 {link}
-"""
-    bot.send_message(msg.chat.id, resposta)
+    bot.send_message(msg.chat.id, f"🔎 Pesquisa no Google:\n{link}")
 
 # =========================
 # /img (Pixabay)
@@ -128,7 +133,7 @@ def google(msg):
 def img(msg):
     texto = msg.text.replace("/img", "").strip()
     if not texto:
-        bot.send_message(msg.chat.id, "Use:\n/img assunto")
+        bot.send_message(msg.chat.id, "Use:\n/img <termo>")
         return
     url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={texto}&image_type=photo&per_page=50"
     r = requests.get(url).json()
@@ -141,6 +146,27 @@ def img(msg):
     foto_bytes.name = "img.jpg"
     foto_bytes.seek(0)
     bot.send_photo(msg.chat.id, foto_bytes, caption=f"🖼 Resultado para: {texto}")
+
+# =========================
+# /aiimg (IA segura)
+# =========================
+@bot.message_handler(commands=['aiimg'])
+def aiimg(msg):
+    texto = msg.text.replace("/aiimg", "").strip()
+    if not texto:
+        bot.send_message(msg.chat.id, "Use:\n/aiimg <descrição da imagem>")
+        return
+    bot.send_message(msg.chat.id, "🎨 Criando imagem IA, aguarde...")
+    try:
+        url = "https://api.deepai.org/api/text2img"
+        headers = {"api-key": DEEPAI_KEY}
+        r = requests.post(url, data={"text": texto}, headers=headers).json()
+        if "output_url" in r:
+            bot.send_photo(msg.chat.id, r["output_url"], caption=f"🖼 Resultado para: {texto}")
+        else:
+            bot.send_message(msg.chat.id, "⚠️ Erro ao gerar imagem.")
+    except Exception as e:
+        bot.send_message(msg.chat.id, f"⚠️ Ocorreu um erro: {e}")
 
 # =========================
 # /fixar
@@ -168,41 +194,51 @@ def desfixar(msg):
         bot.send_message(msg.chat.id, f"Erro: {e}")
 
 # =========================
-# /fig (criar figurinha)
+# Figurinhas automáticas (qualquer imagem)
 # =========================
 @bot.message_handler(content_types=['photo'])
 def figurinha(msg):
-    if msg.caption and msg.caption.lower() == "/fig":
-        try:
-            file_id = msg.photo[-1].file_id
-            file_info = bot.get_file(file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
-            image = Image.open(io.BytesIO(downloaded_file)).convert("RGBA")
-            max_size = 512
-            width, height = image.size
-            ratio = min(max_size / width, max_size / height)
-            new_width = int(width * ratio)
-            new_height = int(height * ratio)
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            final = Image.new("RGBA", (512, 512), (0,0,0,0))
-            final.paste(image, ((512-new_width)//2, (512-new_height)//2), image)
-            bio = io.BytesIO()
-            bio.name = "sticker.png"
-            final.save(bio, "PNG")
-            bio.seek(0)
-            bot.send_sticker(msg.chat.id, bio)
-        except Exception as e:
-            bot.send_message(msg.chat.id, f"Erro ao criar figurinha: {e}")
+    try:
+        file_id = msg.photo[-1].file_id
+        file_info = bot.get_file(file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        image = Image.open(io.BytesIO(downloaded_file)).convert("RGBA")
+        max_size = 512
+        width, height = image.size
+        ratio = min(max_size / width, max_size / height)
+        new_width = int(width * ratio)
+        new_height = int(height * ratio)
+        image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        final = Image.new("RGBA", (512, 512), (0,0,0,0))
+        final.paste(image, ((512-new_width)//2, (512-new_height)//2), image)
+        bio = io.BytesIO()
+        bio.name = "sticker.png"
+        final.save(bio, "PNG")
+        bio.seek(0)
+        bot.send_sticker(msg.chat.id, bio)
+    except Exception as e:
+        bot.send_message(msg.chat.id, f"Erro ao criar figurinha: {e}")
 
 # =========================
 # /info
 # =========================
 @bot.message_handler(commands=['info'])
 def info(msg):
-    bot.send_message(msg.chat.id, "🌸 KaoriBot\nBot de utilidades para Telegram.")
+    uptime_seconds = int(time.time() - start_time)
+    horas = uptime_seconds // 3600
+    minutos = (uptime_seconds % 3600) // 60
+    segundos = uptime_seconds % 60
+
+    texto = f"""
+🌻 KaoriBot v1.8.1 🌻
+Breve biografia: Sou um bot divertido para Telegram, ajudando com figurinhas, imagens, buscas e comandos fofos! 💖
+Criador: {BOT_CREATOR}
+Tempo online: {horas}h {minutos}m {segundos}s
+"""
+    bot.send_message(msg.chat.id, texto)
 
 # =========================
 # INICIAR BOT
 # =========================
-print("KaoriBot está online 🌸")
+print("KaoriBot v1.8.1 está online 🌻")
 bot.infinity_polling(skip_pending=True)
