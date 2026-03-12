@@ -1,202 +1,251 @@
 import telebot
 import requests
-import random
 import time
-import yt_dlp
 import os
+from PIL import Image
+from urllib.parse import quote
+import yt_dlp
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-PIXABAY_KEY = os.getenv("PIXABAY_KEY")
+# -------------------------
+# CONFIGURAÇÃO
+# -------------------------
+BOT_VERSION = "2.3.1"
+CREATOR = "@ni1ckkj"
 
-bot = telebot.TeleBot(BOT_TOKEN)
+TOKEN = os.environ.get("BOT_TOKEN")
+PIXABAY_KEY = os.environ.get("PIXABAY_KEY")
 
+bot = telebot.TeleBot(TOKEN)
 start_time = time.time()
 
-# 🌻 MENU
-MENU = """
+# -------------------------
+# /start
+# -------------------------
+@bot.message_handler(commands=['start'])
+def start(msg):
+    texto = f"""
+╭━━━🌻 COMANDOS KAORI 🌻━━━╮
+
+Olá {msg.from_user.first_name} ✨
+
+Eu sou **Kaori**, sua assistente para deixar seu grupo divertido e útil!
+
+Use:
+
+/menu
+
+para ver todos os comandos disponíveis 🌻
+╰━━━━━━━━━━━━━━━━━━━━╯
+"""
+    bot.send_message(msg.chat.id, texto)
+
+# -------------------------
+# /menu
+# -------------------------
+@bot.message_handler(commands=['menu'])
+def menu(msg):
+    texto = f"""
 ╭━━━🌻 COMANDOS KAORI 🌻━━━╮
 
 👤 Usuário
 /start → iniciar bot
 /menu → abrir comandos
-/info → informações do bot
-/id → ver seu ID
+/info → informações
 
 ⚡ Sistema
 /ping → ping em ms
-/uptime → tempo online
 
 🔎 Pesquisa
-/google texto → pesquisar
-/img texto → buscar imagem
-/wiki termo → pesquisar na Wikipedia
+/google texto
+/img imagem
+/wiki termo
 
 🎧 Música
-/play música ou link
-
-🎲 Diversão
-/dado → rolar dado
-/moeda → cara ou coroa
-/frase → frase aleatória
-/emoji → emoji aleatório
+/play link ou nome da música
 
 🖼 Figurinhas
-envie uma imagem
+envie uma imagem → virar figurinha
+
+😂 Diversão
+/joke → piada aleatória
+/quote → citação aleatória
+/fact → curiosidade aleatória
+
+🛡 Administração
+/pin → fixar mensagem
+/unpin → desafixar
 
 ╰━━━━━━━━━━━━━━━━━━━━╯
 """
+    bot.send_message(msg.chat.id, texto)
 
-# 🌻 START
-@bot.message_handler(commands=['start'])
-def start(msg):
-    bot.reply_to(msg,"🌸 Olá! Eu sou a KaoriBot!\nUse /menu para ver os comandos.")
+# -------------------------
+# /info
+# -------------------------
+@bot.message_handler(commands=['info'])
+def info(msg):
+    ping = round((time.time() - msg.date), 3)
+    uptime = int(time.time() - start_time)
+    h = uptime // 3600
+    m = (uptime % 3600) // 60
+    s = uptime % 60
+    texto = f"""
+╭━━━🌻 INFORMAÇÕES KAORI 🌻━━━╮
 
-# 🌻 MENU
-@bot.message_handler(commands=['menu'])
-def menu(msg):
-    bot.reply_to(msg, MENU)
+🌻 Versão: {BOT_VERSION}
+👤 Criador: {CREATOR}
+⚡ Ping: {ping}s
+⏱ Uptime: {h}h {m}m {s}s
 
-# 🌻 ID
-@bot.message_handler(commands=['id'])
-def userid(msg):
-    bot.reply_to(msg,f"🆔 Seu ID: {msg.from_user.id}")
+╰━━━━━━━━━━━━━━━━━━━━╯
+"""
+    bot.send_message(msg.chat.id, texto)
 
-# 🌻 PING
+# -------------------------
+# /ping
+# -------------------------
 @bot.message_handler(commands=['ping'])
 def ping(msg):
     start = time.time()
-    message = bot.reply_to(msg,"🏓 Pong...")
+    status = bot.send_message(msg.chat.id, "🌻 Pingando...")
     end = time.time()
-    ms = int((end-start)*1000)
-    bot.edit_message_text(f"🏓 Pong: {ms}ms",msg.chat.id,message.message_id)
+    bot.edit_message_text(f"🌻 Pong! {round((end-start)*1000)}ms", msg.chat.id, status.message_id)
 
-# 🌻 UPTIME
-@bot.message_handler(commands=['uptime'])
-def uptime(msg):
-    uptime = int(time.time()-start_time)
-    bot.reply_to(msg,f"⏱ Online há {uptime} segundos")
-
-# 🌻 INFO
-@bot.message_handler(commands=['info'])
-def info(msg):
-    uptime = int(time.time()-start_time)
-
-    texto = f"""
-🌸 KaoriBot
-
-Versão: 2.3
-Ping: use /ping
-Uptime: {uptime} segundos
-
-Criado para diversão e utilidades ✨
-"""
-
-    bot.reply_to(msg,texto)
-
-# 🌻 GOOGLE
+# -------------------------
+# /google
+# -------------------------
 @bot.message_handler(commands=['google'])
 def google(msg):
-    query = msg.text.replace("/google","")
+    query = msg.text.replace("/google","").strip()
+    if not query:
+        bot.reply_to(msg,"🌻 Use:\n/google termo")
+        return
+    link = f"https://www.google.com/search?q={quote(query)}"
+    bot.send_message(msg.chat.id,f"🔎 Resultado para:\n{query}\n\n{link}")
 
-    link = f"https://www.google.com/search?q={query}"
-
-    bot.reply_to(msg,f"🔎 Resultado:\n{link}")
-
-# 🌻 IMG (PIXABAY)
+# -------------------------
+# /img
+# -------------------------
 @bot.message_handler(commands=['img'])
 def img(msg):
-    query = msg.text.replace("/img","")
-
-    url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={query}&image_type=photo"
-
+    query = msg.text.replace("/img","").strip()
+    if not query:
+        bot.reply_to(msg,"🌻 Use:\n/img termo")
+        return
+    url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={quote(query)}&image_type=photo"
     r = requests.get(url).json()
-
     if r["hits"]:
-        imagem = r["hits"][0]["largeImageURL"]
-        bot.send_photo(msg.chat.id,imagem)
+        image = r["hits"][0]["largeImageURL"]
+        bot.send_photo(msg.chat.id, image)
     else:
-        bot.reply_to(msg,"❌ Nenhuma imagem encontrada")
+        bot.send_message(msg.chat.id,"❌ Nenhuma imagem encontrada")
 
-# 🌻 WIKI
+# -------------------------
+# /wiki
+# -------------------------
 @bot.message_handler(commands=['wiki'])
 def wiki(msg):
-
-    termo = msg.text.replace("/wiki","")
-
-    url = f"https://pt.wikipedia.org/api/rest_v1/page/summary/{termo}"
-
+    termo = msg.text.replace("/wiki","").strip()
+    if not termo:
+        bot.reply_to(msg,"🌻 Use:\n/wiki termo")
+        return
+    termo_url = quote(termo)
+    url = f"https://pt.wikipedia.org/api/rest_v1/page/summary/{termo_url}"
     r = requests.get(url).json()
-
     if "extract" in r:
         bot.reply_to(msg,r["extract"][:800])
     else:
-        bot.reply_to(msg,"❌ Não encontrei esse termo.")
+        bot.reply_to(msg,"❌ Não encontrei esse termo na Wikipedia.")
 
-# 🌻 DADO
-@bot.message_handler(commands=['dado'])
-def dado(msg):
-    n = random.randint(1,6)
-    bot.reply_to(msg,f"🎲 Você tirou: {n}")
-
-# 🌻 MOEDA
-@bot.message_handler(commands=['moeda'])
-def moeda(msg):
-    r = random.choice(["Cara","Coroa"])
-    bot.reply_to(msg,f"🪙 Resultado: {r}")
-
-# 🌻 FRASE
-@bot.message_handler(commands=['frase'])
-def frase(msg):
-
-    frases = [
-        "🌸 Continue tentando.",
-        "✨ Você consegue.",
-        "🌻 Cada dia é uma nova chance.",
-        "🔥 Nunca desista.",
-        "🌈 Coisas boas estão vindo."
-    ]
-
-    bot.reply_to(msg,random.choice(frases))
-
-# 🌻 EMOJI
-@bot.message_handler(commands=['emoji'])
-def emoji(msg):
-
-    emojis = ["🌸","🌻","✨","🔥","🎧","🎮","🍜","🦊"]
-
-    bot.reply_to(msg,random.choice(emojis))
-
-# 🌻 PLAY
+# -------------------------
+# /play música/link
+# -------------------------
 @bot.message_handler(commands=['play'])
 def play(msg):
-
-    query = msg.text.replace("/play","")
-
-    bot.reply_to(msg,"🎧 Baixando música...")
-
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': 'music/%(title)s.%(ext)s',
-        'quiet': True,
-        'noplaylist': True
-    }
-
+    query = msg.text.replace("/play","").strip()
+    if not query:
+        bot.reply_to(msg,"🌻 Use:\n/play link ou nome da música")
+        return
+    status = bot.send_message(msg.chat.id,f"🎧 Procurando: {query}")
     try:
-
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': 'music/audio.%(ext)s',
+            'noplaylist': True,
+            'quiet': True
+        }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-
-            info = ydl.extract_info(f"ytsearch:{query}", download=True)
-
-            entry = info['entries'][0]
-
-            filename = ydl.prepare_filename(entry)
-
-            bot.send_audio(msg.chat.id,open(filename,'rb'),title=entry['title'])
-
+            info = ydl.extract_info(query, download=True)
+            filename = ydl.prepare_filename(info)
+            title = info.get('title','Música')
+            thumbnail = info.get('thumbnail')
+        bot.edit_message_text(f"🎵 Enviando: {title}", msg.chat.id, status.message_id)
+        # envia thumbnail se houver
+        if thumbnail:
+            bot.send_photo(msg.chat.id, thumbnail, caption=f"🎵 {title}")
+        with open(filename,"rb") as audio:
+            bot.send_audio(msg.chat.id, audio, title=title)
     except Exception as e:
+        bot.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
 
-        bot.reply_to(msg,f"⚠️ Erro ao baixar música:\n{e}")
+# -------------------------
+# Figurinhas automáticas
+# -------------------------
+@bot.message_handler(content_types=['photo'])
+def sticker(msg):
+    try:
+        file_info = bot.get_file(msg.photo[-1].file_id)
+        downloaded = bot.download_file(file_info.file_path)
+        with open("img.png","wb") as f:
+            f.write(downloaded)
+        img = Image.open("img.png").convert("RGBA")
+        img.thumbnail((512,512), Image.Resampling.LANCZOS)
+        img.save("sticker.webp","WEBP")
+        with open("sticker.webp","rb") as s:
+            bot.send_sticker(msg.chat.id,s)
+        os.remove("img.png")
+        os.remove("sticker.webp")
+    except Exception as e:
+        bot.send_message(msg.chat.id,f"⚠️ Erro:\n{e}")
 
-# 🌻 RUN
-print("🌸 KaoriBot online!")
+# -------------------------
+# /pin
+# -------------------------
+@bot.message_handler(commands=['pin'])
+def pin(msg):
+    if msg.reply_to_message:
+        bot.pin_chat_message(msg.chat.id, msg.reply_to_message.message_id)
+
+# -------------------------
+# /unpin
+# -------------------------
+@bot.message_handler(commands=['unpin'])
+def unpin(msg):
+    bot.unpin_all_chat_messages(msg.chat.id)
+
+# -------------------------
+# Comandos de diversão
+# -------------------------
+@bot.message_handler(commands=['joke'])
+def joke(msg):
+    r = requests.get("https://v2.jokeapi.dev/joke/Any").json()
+    if r.get("type")=="single":
+        bot.reply_to(msg,r.get("joke"))
+    else:
+        bot.reply_to(msg,f"{r.get('setup')}\n{r.get('delivery')}")
+
+@bot.message_handler(commands=['quote'])
+def quote(msg):
+    r = requests.get("https://api.quotable.io/random").json()
+    bot.reply_to(msg,f"{r.get('content')} — {r.get('author')}")
+
+@bot.message_handler(commands=['fact'])
+def fact(msg):
+    r = requests.get("https://uselessfacts.jsph.pl/random.json?language=pt").json()
+    bot.reply_to(msg,r.get("text"))
+
+# -------------------------
+# RUN
+# -------------------------
+print("🌻 Kaori iniciada")
 bot.infinity_polling()
