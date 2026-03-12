@@ -176,26 +176,25 @@ def play(msg):
     try:
 
         ydl_opts = {
-            'format': 'bestaudio/best',
+            'format': 'bestaudio',
             'outtmpl': 'music.%(ext)s',
             'noplaylist': True,
             'quiet': True,
-            'default_search': 'ytsearch1',
+            'default_search': 'ytsearch1'
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+
             info = ydl.extract_info(query, download=True)
+            filename = ydl.prepare_filename(info)
 
-            file_name = ydl.prepare_filename(info)
-            title = info['title']
+        with open(filename, 'rb') as audio:
+            kaori.send_audio(msg.chat.id, audio, title=info['title'])
 
-        with open(file_name, 'rb') as audio:
-            kaori.send_audio(msg.chat.id, audio, title=title)
-
-        os.remove(file_name)
+        os.remove(filename)
 
         kaori.edit_message_text(
-            f"🎵 Música enviada:\n{title}",
+            f"🎵 Música enviada:\n{info['title']}",
             msg.chat.id,
             status.message_id
         )
