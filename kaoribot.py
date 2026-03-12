@@ -6,10 +6,13 @@ import urllib.parse
 from PIL import Image
 import io
 
+# =========================
+# TOKEN
+# =========================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 if not BOT_TOKEN:
-    raise ValueError("⚠️ Token não definido! Crie uma variável BOT_TOKEN no Railway.")
+    raise ValueError("⚠️ Token não definido! Configure BOT_TOKEN no Railway.")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -20,7 +23,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 def start(msg):
     bot.send_message(
         msg.chat.id,
-        "🌸 Olá! Eu sou a KaoriBot!\nUse /menu para ver meus comandos."
+        "🌸 Olá! Kaori está on!\nUse /menu para ver meus comandos."
     )
 
 # =========================
@@ -34,13 +37,14 @@ def menu(msg):
 
 👤 Usuário
 ├ /start → Iniciar o bot
-├ /ping → Ver ping do bot
+├ /ping → Ver ping
 ├ /id → Ver seu ID
-├ /avatar → Ver sua foto de perfil
+├ /avatar → Ver foto de perfil
 
 🌐 Utilidades
 ├ /google → Pesquisar na web
-├ /fig → Criar figurinha (envie foto com /fig)
+├ /img → Buscar imagens
+├ /fig → Criar figurinha
 ├ /info → Informações do bot
 
 🛡 Moderação
@@ -119,38 +123,53 @@ def avatar(msg):
 @bot.message_handler(commands=['google'])
 def google(msg):
 
+    texto = msg.text.replace("/google", "").strip()
+
+    if texto == "":
+        bot.send_message(msg.chat.id, "Use:\n/google assunto")
+        return
+
+    query = urllib.parse.quote(texto)
+
+    link = f"https://www.google.com/search?q={query}"
+
+    resposta = f"""
+🔎 Pesquisa no Google
+
+📌 {texto}
+
+🌐 {link}
+"""
+
+    bot.send_message(msg.chat.id, resposta)
+
+# =========================
+# IMG
+# =========================
+@bot.message_handler(commands=['img'])
+def img(msg):
+
     try:
 
-        texto = msg.text.replace("/google", "").strip()
+        texto = msg.text.replace("/img", "").strip()
 
         if texto == "":
-            bot.send_message(msg.chat.id, "Use:\n/google assunto")
+            bot.send_message(msg.chat.id, "Use:\n/img assunto")
             return
 
-        query = urllib.parse.quote(texto)
+        query = texto.replace(" ", "+")
 
-        url = f"https://api.duckduckgo.com/?q={query}&format=json"
+        url = f"https://source.unsplash.com/600x400/?{query}"
 
-        r = requests.get(url).json()
-
-        resposta = f"🔎 Pesquisa: {texto}\n\n"
-
-        if r.get("AbstractURL"):
-            resposta += f"🌐 {r['AbstractURL']}\n"
-
-        if r.get("RelatedTopics"):
-            for i in r["RelatedTopics"][:3]:
-                if "FirstURL" in i:
-                    resposta += f"🔗 {i['FirstURL']}\n"
-
-        if resposta.strip() == f"🔎 Pesquisa: {texto}":
-            resposta += f"https://www.google.com/search?q={query}"
-
-        bot.send_message(msg.chat.id, resposta)
+        bot.send_photo(
+            msg.chat.id,
+            url,
+            caption=f"🖼 Resultado para: {texto}"
+        )
 
     except Exception as e:
 
-        bot.send_message(msg.chat.id, f"Erro na pesquisa: {e}")
+        bot.send_message(msg.chat.id, f"Erro ao buscar imagem: {e}")
 
 # =========================
 # FIXAR
@@ -253,7 +272,7 @@ def info(msg):
 
     bot.send_message(
         msg.chat.id,
-        "🌸 KaoriBot\n\nBot de utilidades do Telegram.\nRodando com pyTelegramBotAPI."
+        "🌸 KaoriBot\nBot de utilidades para Telegram."
     )
 
 # =========================
