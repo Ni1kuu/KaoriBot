@@ -2,28 +2,29 @@ import telebot
 import os
 import time
 import requests
-import urllib.parse
-from PIL import Image
 import io
+from PIL import Image
 import random
+import openai
 
 # =========================
 # Configurações
 # =========================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+OPENAI_KEY = os.getenv("OPENAI_KEY")  # chave da OpenAI
 PIXABAY_KEY = os.getenv("PIXABAY_API_KEY")
-HUGGINGFACE_KEY = os.getenv("HUGGINGFACE_KEY")
 BOT_CREATOR = "@ni1ckkj"
 
 if not BOT_TOKEN:
     raise ValueError("⚠️ BOT_TOKEN não definido no Railway.")
+if not OPENAI_KEY:
+    raise ValueError("⚠️ OPENAI_KEY não definido no Railway.")
 if not PIXABAY_KEY:
     raise ValueError("⚠️ PIXABAY_API_KEY não definido no Railway.")
-if not HUGGINGFACE_KEY:
-    raise ValueError("⚠️ HUGGINGFACE_KEY não definido no Railway.")
 
+openai.api_key = OPENAI_KEY
 kaori = telebot.TeleBot(BOT_TOKEN)
-start_time = time.time()  # tempo de início do bot
+start_time = time.time()
 
 # =========================
 # /start
@@ -32,7 +33,7 @@ start_time = time.time()  # tempo de início do bot
 def start(msg):
     texto = """
 ╭━━━━━━━━━━━━━━━🌻 BEM-VINDO(A) AO KAORI 🌻━━━━━━━━━━━━━━━╮
-✨ Olá, viajante do Telegram!
+✨ Olá, aventureiro(a)!
 
 Hoje é um dia perfeito para explorar, se divertir e descobrir coisas mágicas.
 Aqui você pode criar figurinhas, gerar imagens incríveis, buscar fotos legais,
@@ -63,7 +64,7 @@ def menu(msg):
 🌐 Utilidades
 ├ /google → Pesquisar na web
 ├ /img → Buscar imagens (Pixabay)
-├ /aiimgstyle → Criar imagens IA com estilo
+├ /aiimg → Criar imagens IA (OpenAI)
 ├ /fig → Criar figurinha
 ├ /info → Informações do bot
 
@@ -122,7 +123,7 @@ def google(msg):
     if not texto:
         kaori.send_message(msg.chat.id, "Use:\n/google <termo de pesquisa>")
         return
-    query = urllib.parse.quote(texto)
+    query = requests.utils.quote(texto)
     link = f"https://www.google.com/search?q={query}"
     kaori.send_message(msg.chat.id, f"🔎 Pesquisa no Google:\n{link}")
 
@@ -148,42 +149,30 @@ def img(msg):
     kaori.send_photo(msg.chat.id, foto_bytes, caption=f"🖼 Resultado para: {texto}")
 
 # =========================
-# /aiimgstyle (Stable Diffusion Hugging Face)
+# /aiimg (OpenAI DALL·E)
 # =========================
-@kaori.message_handler(commands=['aiimgstyle'])
-def aiimgstyle(msg):
-    texto = msg.text.replace("/aiimgstyle", "").strip()
-    if "|" not in texto:
-        kaori.send_message(msg.chat.id, "Use:\n/aiimgstyle <estilo> | <descrição>\nEx: /aiimgstyle anime | um gato astronauta")
+@kaori.message_handler(commands=['aiimg'])
+def aiimg(msg):
+    texto = msg.text.replace("/aiimg", "").strip()
+    if not texto:
+        kaori.send_message(msg.chat.id, "Use:\n/aiimg <descrição da imagem>")
         return
 
-    estilo, prompt = map(str.strip, texto.split("|", 1))
-    msg_aguarde = kaori.send_message(msg.chat.id, f"🌻 Gerando imagem IA no estilo '{estilo}'...")
-
-    estilo_map = {
-        "anime": "anime, bright colors, high detail",
-        "realista": "realistic, photo, high resolution",
-        "pintura": "oil painting, artistic, detailed",
-        "pixel": "pixel art, 8bit, retro",
-        "cartoon": "cartoon style, cute, colorful"
-    }
-    prompt_final = f"{prompt}, {estilo_map.get(estilo.lower(), estilo)}"
+    msg_aguarde = kaori.send_message(msg.chat.id, f"🌻 Gerando imagem IA...")
 
     try:
-        API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
-        headers = {"Authorization": f"Bearer {HUGGINGFACE_KEY}"}
-        r = requests.post(API_URL, headers=headers, json={"inputs": prompt_final}, timeout=90)
-
-        if r.status_code == 200:
-            img_bytes = r.content
-            foto = io.BytesIO(img_bytes)
-            foto.name = "aiimgstyle.png"
-            foto.seek(0)
-            kaori.send_photo(msg.chat.id, foto, caption=f"🖼 Estilo: {estilo}\nPrompt: {prompt}")
-            kaori.edit_message_text(f"🌻 Imagem IA gerada com sucesso!", msg.chat.id, msg_aguarde.message_id)
-        else:
-            kaori.edit_message_text(f"⚠️ Não foi possível gerar imagem (status {r.status_code})", msg.chat.id, msg_aguarde.message_id)
-
+        res = openai.Image.create(
+            prompt=texto,
+            n=1,
+            size="512x512"
+        )
+        img_url = res['data'][0]['url']
+        img_bytes = requests.get(img_url).content
+        foto = io.BytesIO(img_bytes)
+        foto.name = "aiimg.png"
+        foto.seek(0)
+        kaori.send_photo(msg.chat.id, foto, caption=f"🖼 Prompt: {texto}")
+        kaori.edit_message_text(f"🌻 Imagem IA gerada com sucesso!", msg.chat.id, msg_aguarde.message_id)
     except Exception as e:
         kaori.edit_message_text(f"⚠️ Erro ao gerar imagem: {e}", msg.chat.id, msg_aguarde.message_id)
 
@@ -249,7 +238,7 @@ def info(msg):
     segundos = uptime_seconds % 60
 
     texto = f"""
-🌻 Kaori v1.8.4 🌻
+🌻 Kaori v1.9 🌻
 Breve biografia: Sou um bot divertido para Telegram, ajudando com figurinhas, imagens, buscas e comandos fofos! 💖
 Criador: {BOT_CREATOR}
 Tempo online: {horas}h {minutos}m {segundos}s
@@ -259,5 +248,5 @@ Tempo online: {horas}h {minutos}m {segundos}s
 # =========================
 # Iniciar Kaori
 # =========================
-print("Kaori v1.8.4 está online 🌻")
+print("Kaori v1.9 está online 🌻")
 kaori.infinity_polling(skip_pending=True)
