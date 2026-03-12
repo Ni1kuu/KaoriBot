@@ -1,28 +1,25 @@
 import os
 import time
+import shlex
+import subprocess
 import telebot
 import requests
 from PIL import Image
 import wikipedia
-from spotdl import SpotifyDL
 
 # -------------------------
 # VARIÁVEIS
 # -------------------------
 TOKEN = os.getenv("BOT_TOKEN")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
-SPOTDL_CONFIG = {
-    "client_id": os.getenv("SPOTDL_CLIENT_ID"),
-    "client_secret": os.getenv("SPOTDL_CLIENT_SECRET")
-}
-
-kaori = telebot.TeleBot(TOKEN)
-BOT_VERSION = "2.0.1"
+BOT_VERSION = "2.2"
 CREATOR = "@ni1ckkj"
 start_time = time.time()
 
+kaori = telebot.TeleBot(TOKEN)
+
 # -------------------------
-# COMANDOS /START e /MENU
+# /START e /MENU
 # -------------------------
 @kaori.message_handler(commands=['start'])
 def start(msg):
@@ -70,7 +67,7 @@ envie uma imagem
     kaori.send_message(msg.chat.id, texto)
 
 # -------------------------
-# COMANDO /INFO
+# /INFO
 # -------------------------
 @kaori.message_handler(commands=['info'])
 def info(msg):
@@ -90,7 +87,7 @@ Uptime: {h}h {m}m {s}s
     kaori.send_message(msg.chat.id, texto)
 
 # -------------------------
-# COMANDO /PING
+# /PING
 # -------------------------
 @kaori.message_handler(commands=['ping'])
 def ping(msg):
@@ -146,7 +143,7 @@ def wiki(msg):
         kaori.send_message(msg.chat.id, f"❌ Erro ao buscar: {e}")
 
 # -------------------------
-# JOKE e FACT
+# /JOKE e /FACT
 # -------------------------
 @kaori.message_handler(commands=['joke'])
 def joke(msg):
@@ -168,7 +165,7 @@ def fact(msg):
         kaori.send_message(msg.chat.id, "❌ Não consegui buscar um fato agora.")
 
 # -------------------------
-# STICKERS AUTOMÁTICO
+# FIGURINHAS
 # -------------------------
 @kaori.message_handler(content_types=['photo'])
 def sticker(msg):
@@ -188,50 +185,33 @@ def sticker(msg):
         kaori.send_message(msg.chat.id,f"⚠️ Erro:\n{e}")
 
 # -------------------------
-# /PLAY COM EMBED ESTILO SPOTIFY
+# /PLAY com SpotDL CLI
 # -------------------------
 @kaori.message_handler(commands=['play'])
 def play(msg):
     query = msg.text.replace("/play", "").strip()
     if not query:
-        kaori.reply_to(msg,"🌻 Use:\n/play link ou nome da música")
+        kaori.reply_to(msg, "🌻 Use:\n/play link ou nome da música")
         return
 
-    status = kaori.send_message(msg.chat.id,f"🎧 Procurando: {query}")
+    status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
 
     try:
-        with SpotifyDL(SPOTDL_CONFIG) as sdl:
-            info = sdl.download([query], output=f"music/{query}.mp3", return_song_objects=True)[0]
-            # Embed estilo Spotify
-            texto_embed = f"""
-🎵 {info.name}
-👤 {', '.join(info.artists)}
-⏱ {int(info.duration)}s
-"""
-            kaori.edit_message_text(texto_embed, msg.chat.id, status.message_id)
+        # garante que as pastas existam
+        os.makedirs("music", exist_ok=True)
 
-            # Enviar áudio
-            with open(f"music/{query}.mp3","rb") as audio:
-                kaori.send_audio(msg.chat.id, audio, title=info.name, performer=', '.join(info.artists))
+        # comando SpotDL CLI
+        cmd = f"spotdl {shlex.quote(query)} --output music/audio.mp3 --overwrite"
+        subprocess.run(cmd, shell=True, check=True)
 
-            # Enviar thumbnail
-            if info.thumbnail:
-                kaori.send_photo(msg.chat.id, info.thumbnail)
+        # envia áudio
+        with open("music/audio.mp3","rb") as audio:
+            kaori.send_audio(msg.chat.id, audio, title=query)
 
-    except Exception as e:
+        kaori.edit_message_text(f"🎵 {query}", msg.chat.id, status.message_id)
+
+    except subprocess.CalledProcessError as e:
         kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
-
-# -------------------------
-# PIN / UNPIN
-# -------------------------
-@kaori.message_handler(commands=['pin'])
-def pin(msg):
-    if msg.reply_to_message:
-        kaori.pin_chat_message(msg.chat.id, msg.reply_to_message.message_id)
-
-@kaori.message_handler(commands=['unpin'])
-def unpin(msg):
-    kaori.unpin_all_chat_messages(msg.chat.id)
 
 # -------------------------
 # RUN BOT
