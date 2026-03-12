@@ -8,10 +8,10 @@ import io
 import random
 
 # =========================
-# TOKEN
+# TOKEN e Chave Pixabay
 # =========================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-PIXABAY_KEY = os.getenv("PIXABAY_API_KEY")  # coloque sua chave no Railway
+PIXABAY_KEY = os.getenv("PIXABAY_API_KEY")  # Coloque sua chave no Railway
 
 if not BOT_TOKEN:
     raise ValueError("⚠️ Token não definido! Configure BOT_TOKEN no Railway.")
