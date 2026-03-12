@@ -8,7 +8,9 @@ from PIL import Image
 # -------------------------
 # CONFIGURAÇÕES
 # -------------------------
-BOT_TOKEN = "SEU_TOKEN_AQUI"
+import os
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 PIXABAY_KEY = "SUA_PIXABAY_KEY"
 
 kaori = telebot.TeleBot(BOT_TOKEN)
