@@ -11,7 +11,7 @@ from PIL import Image
 import os
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-PIXABAY_KEY = "SUA_PIXABAY_KEY"
+PIXABAY_KEY = os.getenv("PIXABAY_KEY")
 
 kaori = telebot.TeleBot(BOT_TOKEN)
 
