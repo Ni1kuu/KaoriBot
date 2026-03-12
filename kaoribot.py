@@ -12,18 +12,18 @@ import random
 # =========================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 PIXABAY_KEY = os.getenv("PIXABAY_API_KEY")
-DEEPAI_KEY = os.getenv("DEEPAI_KEY")
-BOT_CREATOR = "@seu_username_aqui"  # coloque seu Telegram aqui
+HUGGINGFACE_KEY = os.getenv("HUGGINGFACE_KEY")
+BOT_CREATOR = "@seu_username_aqui"
 
 if not BOT_TOKEN:
     raise ValueError("⚠️ BOT_TOKEN não definido no Railway.")
 if not PIXABAY_KEY:
     raise ValueError("⚠️ PIXABAY_API_KEY não definido no Railway.")
-if not DEEPAI_KEY:
-    raise ValueError("⚠️ DEEPAI_KEY não definido no Railway.")
+if not HUGGINGFACE_KEY:
+    raise ValueError("⚠️ HUGGINGFACE_KEY não definido no Railway.")
 
 kaori = telebot.TeleBot(BOT_TOKEN)
-start_time = time.time()  # marca início do bot
+start_time = time.time()  # tempo de início do bot
 
 # =========================
 # /start
@@ -31,7 +31,7 @@ start_time = time.time()  # marca início do bot
 @kaori.message_handler(commands=['start'])
 def start(msg):
     texto = """
-╭━━━━━━━━━━━━━━━🌻 BEM-VINDO(A) AO KAORI BOT 🌻━━━━━━━━━━━━━━━╮
+╭━━━━━━━━━━━━━━━🌻 BEM-VINDO(A) AO KAORI 🌻━━━━━━━━━━━━━━━╮
 ✨ "Olá, viajante do Telegram! ✨
 
 Hoje é um dia perfeito para explorar, se divertir e descobrir coisas mágicas.
@@ -52,7 +52,7 @@ Para começar, use o comando /menu e veja tudo o que podemos fazer juntos! 🎀
 @kaori.message_handler(commands=['menu'])
 def menu(msg):
     texto = """
-╭━━━━━━━━━━━━━━━🌻 KAORI BOT 🌻━━━━━━━━━━━━━━━╮
+╭━━━━━━━━━━━━━━━🌻 KAORI 🌻━━━━━━━━━━━━━━━╮
 
 👤 Usuário
 ├ /start → Mensagem de boas-vindas
@@ -148,7 +148,7 @@ def img(msg):
     kaori.send_photo(msg.chat.id, foto_bytes, caption=f"🖼 Resultado para: {texto}")
 
 # =========================
-# /aiimg (IA segura) corrigido
+# /aiimg (Hugging Face Stable Diffusion)
 # =========================
 @kaori.message_handler(commands=['aiimg'])
 def aiimg(msg):
@@ -156,20 +156,33 @@ def aiimg(msg):
     if not texto:
         kaori.send_message(msg.chat.id, "Use:\n/aiimg <descrição da imagem>")
         return
-    mensagem = kaori.send_message(msg.chat.id, "🎨 Criando imagem IA, aguarde... 🌻")
+
+    aguardando = kaori.send_message(msg.chat.id, "🌻 Gerando sua imagem IA...")
+
     try:
-        url = "https://api.deepai.org/api/text2img"
-        headers = {"api-key": DEEPAI_KEY}
-        r = requests.post(url, data={"text": texto}, headers=headers, timeout=30).json()
-        if "output_url" in r and r["output_url"].startswith("http"):
-            kaori.edit_message_text(f"🎨 Aqui está sua imagem IA para: {texto}", msg.chat.id, mensagem.message_id)
-            kaori.send_photo(msg.chat.id, r["output_url"])
+        API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2"
+        headers = {
+            "Authorization": f"Bearer {HUGGINGFACE_KEY}"
+        }
+        payload = {"inputs": texto, "options":{"use_gpu": True}}
+        r = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+
+        if r.status_code == 200:
+            img_bytes = r.content
+            foto = io.BytesIO(img_bytes)
+            foto.name = "aiimg.png"
+            foto.seek(0)
+            kaori.send_photo(msg.chat.id, foto, caption=f"🖼 Imagem IA: {texto}")
+            kaori.edit_message_text("🌻 Imagem gerada com sucesso!", msg.chat.id, aguardando.message_id)
         else:
-            kaori.edit_message_text(f"⚠️ Oops! Não consegui gerar a imagem 😢\nTente novamente.", msg.chat.id, mensagem.message_id)
-    except requests.exceptions.RequestException as e:
-        kaori.edit_message_text(f"⚠️ Erro de rede: {e}", msg.chat.id, mensagem.message_id)
+            kaori.edit_message_text(
+                f"⚠️ Não foi possível gerar imagem (status {r.status_code})",
+                msg.chat.id,
+                aguardando.message_id
+            )
+
     except Exception as e:
-        kaori.edit_message_text(f"⚠️ Algo deu errado: {e}", msg.chat.id, mensagem.message_id)
+        kaori.edit_message_text(f"⚠️ Erro ao gerar imagem: {e}", msg.chat.id, aguardando.message_id)
 
 # =========================
 # /fixar
@@ -233,15 +246,15 @@ def info(msg):
     segundos = uptime_seconds % 60
 
     texto = f"""
-🌻 KaoriBot v1.8.2 🌻
-Sobre: Sou um bot divertido para Telegram, ajudando com figurinhas, imagens, buscas e comandos fofos! 💖
+🌻 Kaori v1.8.3 🌻
+Breve biografia: Sou um bot divertido para Telegram, ajudando com figurinhas, imagens, buscas e comandos fofos! 💖
 Criador: {BOT_CREATOR}
 Tempo online: {horas}h {minutos}m {segundos}s
 """
     kaori.send_message(msg.chat.id, texto)
 
 # =========================
-# INICIAR BOT
+# Iniciar Kaori
 # =========================
-print("KaoriBot v1.8.2 está online 🌻")
+print("Kaori v1.8.3 está online 🌻")
 kaori.infinity_polling(skip_pending=True)
