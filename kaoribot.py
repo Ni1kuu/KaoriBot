@@ -189,6 +189,8 @@ def sticker(msg):
 # -------------------------
 @kaori.message_handler(commands=['play'])
 def play(msg):
+    import os, re, shlex, subprocess
+
     query = msg.text.replace("/play", "").strip()
     if not query:
         kaori.reply_to(msg, "🌻 Use:\n/play link ou nome da música")
@@ -200,12 +202,19 @@ def play(msg):
         # garante que a pasta music exista
         os.makedirs("music", exist_ok=True)
 
-        # comando SpotDL CLI atualizado para buscar pelo nome ou link
-        cmd = f"spotdl {shlex.quote(query)} --output music/audio.mp3 --overwrite --default-search ytsearch"
+        # Detecta se é link ou nome
+        if re.match(r'https?://', query):
+            # Link direto
+            cmd = f"spotdl {shlex.quote(query)} --output music/audio.mp3 --overwrite"
+        else:
+            # Nome da música → busca no YouTube
+            cmd = f"spotdl {shlex.quote(query)} --output music/audio.mp3 --overwrite --default-search ytsearch"
+
+        # Executa o SpotDL
         subprocess.run(cmd, shell=True, check=True)
 
-        # envia o áudio para o chat
-        with open("music/audio.mp3","rb") as audio:
+        # Envia o áudio
+        with open("music/audio.mp3", "rb") as audio:
             kaori.send_audio(msg.chat.id, audio, title=query)
 
         kaori.edit_message_text(f"🎵 {query}", msg.chat.id, status.message_id)
