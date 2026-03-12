@@ -228,15 +228,23 @@ def play(msg):
     try:
 
         ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': 'audio.%(ext)s',
-            'quiet': True,
-            'noplaylist': True
+    'format': 'bestaudio/best',
+    'outtmpl': 'audio.%(ext)s',
+    'quiet': True,
+    'noplaylist': True,
+    'extractor_args': {
+        'youtube': {
+            'player_client': ['android']
         }
+    },
+    'http_headers': {
+        'User-Agent': 'com.google.android.youtube/17.31.35 (Linux; U; Android 11)'
+    }
+}
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
+with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    info = ydl.extract_info(url, download=True)
+    filename = ydl.prepare_filename(info)
 
         # thumbnail
         thumb = info.get("thumbnail")
