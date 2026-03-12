@@ -149,7 +149,7 @@ def img(msg):
     kaori.send_photo(msg.chat.id, foto_bytes, caption=f"🖼 Resultado para: {texto}")
 
 # =========================
-# /aiimg (OpenAI DALL·E)
+# /aiimg (OpenAI DALL·E nova API)
 # =========================
 @kaori.message_handler(commands=['aiimg'])
 def aiimg(msg):
@@ -161,12 +161,12 @@ def aiimg(msg):
     msg_aguarde = kaori.send_message(msg.chat.id, f"🌻 Gerando imagem IA...")
 
     try:
-        res = openai.Image.create(
+        res = openai.images.generate(
+            model="gpt-image-1",
             prompt=texto,
-            n=1,
             size="512x512"
         )
-        img_url = res['data'][0]['url']
+        img_url = res.data[0].url
         img_bytes = requests.get(img_url).content
         foto = io.BytesIO(img_bytes)
         foto.name = "aiimg.png"
@@ -238,7 +238,7 @@ def info(msg):
     segundos = uptime_seconds % 60
 
     texto = f"""
-🌻 Kaori v1.9 🌻
+🌻 Kaori v1.9.1 🌻
 Breve biografia: Sou um bot divertido para Telegram, ajudando com figurinhas, imagens, buscas e comandos fofos! 💖
 Criador: {BOT_CREATOR}
 Tempo online: {horas}h {minutos}m {segundos}s
@@ -248,5 +248,5 @@ Tempo online: {horas}h {minutos}m {segundos}s
 # =========================
 # Iniciar Kaori
 # =========================
-print("Kaori v1.9 está online 🌻")
+print("Kaori v1.9.1 está online 🌻")
 kaori.infinity_polling(skip_pending=True)
