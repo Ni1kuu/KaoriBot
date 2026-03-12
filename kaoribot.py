@@ -217,35 +217,31 @@ def sticker(msg):
 @kaori.message_handler(commands=['play'])
 def play(msg):
 
-    query = msg.text.replace("/play", "").strip()
+    url = msg.text.replace("/play","").strip()
 
-    if not query:
-        kaori.reply_to(msg, "🌻 Use:\n/play nome da música")
+    if not url:
+        kaori.reply_to(msg,"🌻 Use:\n/play link_do_youtube")
         return
 
-    status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
+    status = kaori.send_message(msg.chat.id,"🎧 Baixando áudio...")
 
     try:
 
         ydl_opts = {
             'format': 'bestaudio/best',
-            'outtmpl': 'music.%(ext)s',
-            'noplaylist': True,
+            'outtmpl': 'audio.%(ext)s',
             'quiet': True,
-            'default_search': 'ytsearch1',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192'
-            }]
+            'noplaylist': True
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(query, download=True)
 
-        filename = "music.mp3"
+            info = ydl.extract_info(url, download=True)
 
-        with open(filename, 'rb') as audio:
+            filename = ydl.prepare_filename(info)
+
+        with open(filename,'rb') as audio:
+
             kaori.send_audio(
                 msg.chat.id,
                 audio,
@@ -256,7 +252,7 @@ def play(msg):
         os.remove(filename)
 
         kaori.edit_message_text(
-            f"🎵 Música enviada\n\n{info.get('title')}",
+            f"🎵 {info.get('title')}",
             msg.chat.id,
             status.message_id
         )
@@ -264,7 +260,7 @@ def play(msg):
     except Exception as e:
 
         kaori.edit_message_text(
-            f"⚠️ Erro ao baixar música:\n{e}",
+            f"⚠️ Erro:\n{e}",
             msg.chat.id,
             status.message_id
         )
