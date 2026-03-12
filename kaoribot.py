@@ -2,23 +2,20 @@ import telebot
 import requests
 import time
 import os
-import yt_dlp
+import subprocess
 from PIL import Image
 
 # -------------------------
-# CONFIGURAÇÕES
+# VARIÁVEIS
 # -------------------------
-import os
+BOT_VERSION = "1.8.4"
+CREATOR = "@ni1ckkj"
+start_time = time.time()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
 
 kaori = telebot.TeleBot(BOT_TOKEN)
-
-BOT_VERSION = "1.8.3"
-CREATOR = "@ni1ckkj"
-
-start_time = time.time()
 
 # -------------------------
 # START
@@ -32,14 +29,15 @@ def start(msg):
 
 Olá {msg.from_user.first_name} ✨
 
-Eu sou **Kaori**, sua assistente para deixar tudo mais divertido e útil.
+Eu sou **Kaori**, sua assistente para deixar grupos
+mais divertidos e úteis!
 
 🌻 Posso:
 
-🎧 Baixar músicas
-🖼 Buscar imagens
-🔎 Pesquisar na web
-✨ Criar figurinhas
+🎧 baixar músicas
+🖼 buscar imagens
+🔎 pesquisar na web
+✨ criar figurinhas
 
 Use:
 
@@ -85,11 +83,12 @@ def menu(msg):
 # -------------------------
 @kaori.message_handler(commands=['info'])
 def info(msg):
-    ping = round(time.time() - msg.date, 3)
+    ping = round((time.time() - msg.date), 3)
     uptime = int(time.time() - start_time)
     h = uptime // 3600
     m = (uptime % 3600) // 60
     s = uptime % 60
+
     texto = f"""
 ╭━━━━━━━━━━━━━━━🌻━━━━━━━━━━━━━━━╮
         Informações da Kaori
@@ -97,10 +96,10 @@ def info(msg):
 
 🌻 Versão: {BOT_VERSION}
 
-👤 Criador: {CREATOR}
+👤 Criador:
+{CREATOR}
 
 ⚡ Ping: {ping}s
-
 ⏱ Uptime: {h}h {m}m {s}s
 """
     kaori.send_message(msg.chat.id, texto)
@@ -126,8 +125,10 @@ def img(msg):
     if not query:
         kaori.reply_to(msg, "🌻 Use:\n/img nome da imagem")
         return
+
     url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={query}&image_type=photo"
     r = requests.get(url).json()
+
     if r["hits"]:
         image = r["hits"][0]["largeImageURL"]
         kaori.send_photo(msg.chat.id, image)
@@ -142,56 +143,43 @@ def sticker(msg):
     try:
         file_info = kaori.get_file(msg.photo[-1].file_id)
         downloaded = kaori.download_file(file_info.file_path)
+
         with open("img.png", "wb") as f:
             f.write(downloaded)
+
         img = Image.open("img.png").convert("RGBA")
         img.thumbnail((512,512), Image.Resampling.LANCZOS)
         img.save("sticker.webp", "WEBP")
+
         with open("sticker.webp","rb") as s:
             kaori.send_sticker(msg.chat.id, s)
+
         os.remove("img.png")
         os.remove("sticker.webp")
     except Exception as e:
-        kaori.send_message(msg.chat.id,f"⚠️ Erro:\n{e}")
+        kaori.send_message(msg.chat.id, f"⚠️ Erro:\n{e}")
 
 # -------------------------
-# PLAY MUSIC
+# PLAY MUSIC (via spotdl)
 # -------------------------
 @kaori.message_handler(commands=['play'])
 def play(msg):
     query = msg.text.replace("/play","").strip()
     if not query:
-        kaori.reply_to(msg,"🌻 Use:\n/play nome da música")
+        kaori.reply_to(msg, "🌻 Use:\n/play nome da música")
         return
-    status = kaori.send_message(msg.chat.id,f"🎧 Procurando: {query}")
+
+    status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
+
     try:
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': 'music.%(ext)s',
-            'noplaylist': True,
-            'quiet': True,
-            'default_search': 'ytsearch1',
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
-            },
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android']
-                }
-            },
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(query, download=True)
-            title = info['title']
-        kaori.edit_message_text(f"🎵 Enviando:\n{title}", msg.chat.id, status.message_id)
+        subprocess.run(f"spotdl '{query}' --output music.mp3", shell=True, check=True)
+
         with open("music.mp3","rb") as audio:
-            kaori.send_audio(msg.chat.id,audio,title=title)
+            kaori.send_audio(msg.chat.id, audio, title=query)
+
         os.remove("music.mp3")
+        kaori.edit_message_text(f"🎵 Música enviada: {query}", msg.chat.id, status.message_id)
+
     except Exception as e:
         kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
 
