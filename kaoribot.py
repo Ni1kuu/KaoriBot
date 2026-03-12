@@ -164,7 +164,7 @@ def aiimg(msg):
         res = openai.images.generate(
             model="gpt-image-1",
             prompt=texto,
-            size="512x512"
+            size="1024x1024"
         )
         img_url = res.data[0].url
         img_bytes = requests.get(img_url).content
