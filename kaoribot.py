@@ -217,21 +217,21 @@ def sticker(msg):
 @kaori.message_handler(commands=['play'])
 def play(msg):
 
-    query = msg.text.replace("/play","").strip()
+    query = msg.text.replace("/play", "").strip()
 
     if not query:
-        kaori.reply_to(msg,"🌻 Use:\n/play nome da música")
+        kaori.reply_to(msg, "🌻 Use:\n/play nome da música")
         return
 
-    status = kaori.send_message(msg.chat.id,f"🎧 Procurando: {query}")
+    status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
 
     try:
 
         ydl_opts = {
-            'format': 'bestaudio',
-            'outtmpl': 'music.%(ext)s',
-            'quiet': True,
+            'format': 'bestaudio/best',
+            'outtmpl': '%(title)s.%(ext)s',
             'noplaylist': True,
+            'quiet': True,
             'default_search': 'scsearch1'
         }
 
@@ -241,13 +241,13 @@ def play(msg):
 
             filename = ydl.prepare_filename(info)
 
-        with open(filename,'rb') as audio:
+        with open(filename, 'rb') as audio:
 
             kaori.send_audio(
                 msg.chat.id,
                 audio,
-                title=info.get('title'),
-                performer=info.get('uploader')
+                title=info.get("title"),
+                performer=info.get("uploader")
             )
 
         os.remove(filename)
