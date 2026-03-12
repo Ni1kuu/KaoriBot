@@ -6,14 +6,16 @@ import yt_dlp
 from PIL import Image
 
 # -------------------------
-# VARIÁVEIS DE AMBIENTE
+# CONFIGURAÇÕES
 # -------------------------
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-PIXABAY_KEY = os.getenv("PIXABAY_KEY")
+BOT_TOKEN = "SEU_TOKEN_AQUI"
+PIXABAY_KEY = "SUA_PIXABAY_KEY"
 
 kaori = telebot.TeleBot(BOT_TOKEN)
-BOT_VERSION = "1.9"
+
+BOT_VERSION = "1.8.3"
 CREATOR = "@ni1ckkj"
+
 start_time = time.time()
 
 # -------------------------
@@ -28,20 +30,20 @@ def start(msg):
 
 Olá {msg.from_user.first_name} ✨
 
-Eu sou **Kaori**, sua assistente divertida e útil.
+Eu sou **Kaori**, sua assistente para deixar tudo mais divertido e útil.
 
 🌻 Posso:
 
-🎧 baixar músicas com capa e duração
-🖼 buscar imagens
-🔎 pesquisar na web
-✨ criar figurinhas
+🎧 Baixar músicas
+🖼 Buscar imagens
+🔎 Pesquisar na web
+✨ Criar figurinhas
 
 Use:
 
 /menu
 
-para ver todos os comandos 🌻
+para ver todos os comandos disponíveis 🌻
 """
     kaori.send_message(msg.chat.id, texto)
 
@@ -63,7 +65,7 @@ def menu(msg):
 ├ /img nome → buscar imagem
 
 🎧 Música
-├ /play música → baixar música (com capa e duração)
+├ /play música → baixar música
 
 🖼 Figurinhas
 ├ envie uma imagem → virar figurinha
@@ -81,7 +83,7 @@ def menu(msg):
 # -------------------------
 @kaori.message_handler(commands=['info'])
 def info(msg):
-    ping = round((time.time() - msg.date), 3)
+    ping = round(time.time() - msg.date, 3)
     uptime = int(time.time() - start_time)
     h = uptime // 3600
     m = (uptime % 3600) // 60
@@ -92,8 +94,11 @@ def info(msg):
 ╰━━━━━━━━━━━━━━━🌻━━━━━━━━━━━━━━━╯
 
 🌻 Versão: {BOT_VERSION}
+
 👤 Criador: {CREATOR}
+
 ⚡ Ping: {ping}s
+
 ⏱ Uptime: {h}h {m}m {s}s
 """
     kaori.send_message(msg.chat.id, texto)
@@ -148,7 +153,7 @@ def sticker(msg):
         kaori.send_message(msg.chat.id,f"⚠️ Erro:\n{e}")
 
 # -------------------------
-# PLAY MUSIC v1.9
+# PLAY MUSIC
 # -------------------------
 @kaori.message_handler(commands=['play'])
 def play(msg):
@@ -163,43 +168,42 @@ def play(msg):
             'outtmpl': 'music.%(ext)s',
             'noplaylist': True,
             'quiet': True,
-            'default_search': 'ytsearch5',  # pega até 5 resultados
-            'http_headers': {'User-Agent': 'Mozilla/5.0'},
+            'default_search': 'ytsearch1',
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
+            },
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android']
+                }
+            },
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
         }
-
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(query, download=True)
-            if 'entries' in info:  # se retornou lista
-                info = info['entries'][0]
             title = info['title']
-            duration = info.get('duration')
-            thumbnail = info.get('thumbnail')
-
-        # Envia thumbnail
-        if thumbnail:
-            kaori.send_photo(msg.chat.id, thumbnail, caption=f"🎵 {title}\n⏱ {duration}s")
-
-        kaori.edit_message_text(f"🎵 Enviando música: {title}", msg.chat.id, status.message_id)
+        kaori.edit_message_text(f"🎵 Enviando:\n{title}", msg.chat.id, status.message_id)
         with open("music.mp3","rb") as audio:
-            kaori.send_audio(msg.chat.id, audio, title=title)
+            kaori.send_audio(msg.chat.id,audio,title=title)
         os.remove("music.mp3")
-
     except Exception as e:
         kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
 
 # -------------------------
-# PIN & UNPIN
+# PIN
 # -------------------------
 @kaori.message_handler(commands=['pin'])
 def pin(msg):
     if msg.reply_to_message:
         kaori.pin_chat_message(msg.chat.id, msg.reply_to_message.message_id)
 
+# -------------------------
+# UNPIN
+# -------------------------
 @kaori.message_handler(commands=['unpin'])
 def unpin(msg):
     kaori.unpin_all_chat_messages(msg.chat.id)
@@ -207,5 +211,5 @@ def unpin(msg):
 # -------------------------
 # RUN
 # -------------------------
-print("🌻 Kaori v1.9 iniciada")
+print("🌻 Kaori iniciada")
 kaori.infinity_polling()
