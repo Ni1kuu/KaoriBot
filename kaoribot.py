@@ -13,7 +13,7 @@ import random
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 PIXABAY_KEY = os.getenv("PIXABAY_API_KEY")
 HUGGINGFACE_KEY = os.getenv("HUGGINGFACE_KEY")
-BOT_CREATOR = "@seu_username_aqui"
+BOT_CREATOR = "@ni1ckkj"
 
 if not BOT_TOKEN:
     raise ValueError("⚠️ BOT_TOKEN não definido no Railway.")
