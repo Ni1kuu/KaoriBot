@@ -1,22 +1,26 @@
+import os
+import time
 import telebot
 import requests
-import time
-import os
-import random
 from PIL import Image
-from io import BytesIO
+from spotdl import Spotdl
 
-# 🔑 Configurações
-BOT_TOKEN = os.getenv("BOT_TOKEN")  # Telegram token do Railway
-PIXABAY_KEY = os.getenv("PIXABAY_KEY")  # Pixabay API Key
-BOT_VERSION = "2.2"
-CREATOR = "@ni1ckkj"
+# -------------------------
+# CONFIGURAÇÕES
+# -------------------------
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+PIXABAY_KEY = os.getenv("PIXABAY_KEY")
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 
 kaori = telebot.TeleBot(BOT_TOKEN)
+
+BOT_VERSION = "2.2"
+CREATOR = "@ni1ckkj"
 start_time = time.time()
 
 # -------------------------
-# COMANDOS /START e /MENU
+# START
 # -------------------------
 @kaori.message_handler(commands=['start'])
 def start(msg):
@@ -24,25 +28,31 @@ def start(msg):
 ╭━━━🌻 COMANDOS KAORI 🌻━━━╮
 
 Olá {msg.from_user.first_name} ✨
-Eu sou Kaori, sua assistente de grupo.
+
+Eu sou **Kaori**, sua assistente para deixar o grupo mais divertido.
 
 🌻 Posso:
 
-🎧 Baixar músicas
-🖼 Buscar imagens
-🔎 Pesquisar na web
-✨ Criar figurinhas
+🎧 baixar músicas
+🖼 buscar imagens
+🔎 pesquisar na web
+✨ criar figurinhas
 
 Use:
+
 /menu
 
+para ver todos os comandos disponíveis
 ╰━━━━━━━━━━━━━━━━━━━━╯
 """
     kaori.send_message(msg.chat.id, texto)
 
+# -------------------------
+# MENU
+# -------------------------
 @kaori.message_handler(commands=['menu'])
 def menu(msg):
-    texto = f"""
+    texto = """
 ╭━━━🌻 COMANDOS KAORI 🌻━━━╮
 
 👤 Usuário
@@ -54,37 +64,38 @@ def menu(msg):
 /ping → ping em ms
 
 🔎 Pesquisa
-/google texto → pesquisar
-/img imagem → buscar imagem
+/google texto
+/img imagem
+/wiki termo
 
 🎧 Música
-/play nome ou link → baixar música do SoundCloud/Spotify
+/play música ou link Spotify/SoundCloud
 
 🖼 Figurinhas
-envie uma imagem → virar figurinha
+envie uma imagem
 
-😂 Diversão
+🌟 Diversão
 /joke → piada
 /fact → curiosidade
-/quote → citação motivacional
+/quote → frase aleatória
 
 ╰━━━━━━━━━━━━━━━━━━━━╯
 """
     kaori.send_message(msg.chat.id, texto)
 
 # -------------------------
-# COMANDO /INFO
+# INFO
 # -------------------------
 @kaori.message_handler(commands=['info'])
 def info(msg):
+    ping = round((time.time() - msg.date), 3)
     uptime = int(time.time() - start_time)
     h = uptime // 3600
     m = (uptime % 3600) // 60
     s = uptime % 60
-    ping = round((time.time() - msg.date), 3)
 
     texto = f"""
-╭━━━🌻 INFORMAÇÕES KAORI 🌻━━━╮
+╭━━━🌻 KAORI INFO 🌻━━━╮
 
 🌻 Versão: {BOT_VERSION}
 👤 Criador: {CREATOR}
@@ -96,33 +107,51 @@ def info(msg):
     kaori.send_message(msg.chat.id, texto)
 
 # -------------------------
-# COMANDO /PING
+# PING
 # -------------------------
 @kaori.message_handler(commands=['ping'])
 def ping(msg):
-    ms = round((time.time() - msg.date) * 1000)
-    kaori.reply_to(msg, f"🌻 Pong! {ms}ms")
+    start = time.time()
+    status = kaori.send_message(msg.chat.id, "🏓 Ping...")
+    end = round((time.time() - start) * 1000)
+    kaori.edit_message_text(f"🏓 Pong! {end}ms", msg.chat.id, status.message_id)
 
 # -------------------------
-# COMANDO /GOOGLE
+# GOOGLE SEARCH
 # -------------------------
 @kaori.message_handler(commands=['google'])
 def google(msg):
-    query = msg.text.replace("/google","").strip()
+    query = msg.text.replace("/google", "").strip()
     if not query:
-        kaori.reply_to(msg,"🌻 Use:\n/google pesquisa")
+        kaori.reply_to(msg, "🌻 Use:\n/google pesquisa")
         return
     link = f"https://www.google.com/search?q={query}"
     kaori.send_message(msg.chat.id, f"🔎 Resultado para:\n{query}\n\n{link}")
 
 # -------------------------
-# COMANDO /IMG
+# WIKI SEARCH
+# -------------------------
+@kaori.message_handler(commands=['wiki'])
+def wiki(msg):
+    import wikipedia
+    query = msg.text.replace("/wiki", "").strip()
+    if not query:
+        kaori.reply_to(msg, "🌻 Use:\n/wiki termo")
+        return
+    try:
+        resumo = wikipedia.summary(query, sentences=3, auto_suggest=False, redirect=True)
+        kaori.send_message(msg.chat.id, f"🌐 {query}:\n{resumo}")
+    except Exception as e:
+        kaori.send_message(msg.chat.id, f"❌ Erro: {e}")
+
+# -------------------------
+# PIXABAY IMAGE
 # -------------------------
 @kaori.message_handler(commands=['img'])
 def img(msg):
-    query = msg.text.replace("/img","").strip()
+    query = msg.text.replace("/img", "").strip()
     if not query:
-        kaori.reply_to(msg,"🌻 Use:\n/img nome da imagem")
+        kaori.reply_to(msg, "🌻 Use:\n/img nome da imagem")
         return
     url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={query}&image_type=photo"
     r = requests.get(url).json()
@@ -130,84 +159,89 @@ def img(msg):
         image = r["hits"][0]["largeImageURL"]
         kaori.send_photo(msg.chat.id, image)
     else:
-        kaori.send_message(msg.chat.id,"❌ Nenhuma imagem encontrada")
+        kaori.send_message(msg.chat.id, "❌ Nenhuma imagem encontrada")
 
 # -------------------------
-# FIGURINHAS AUTOMÁTICAS
+# STICKER AUTOMÁTICO
 # -------------------------
 @kaori.message_handler(content_types=['photo'])
 def sticker(msg):
     try:
         file_info = kaori.get_file(msg.photo[-1].file_id)
         downloaded = kaori.download_file(file_info.file_path)
-        with open("img.png","wb") as f:
+        os.makedirs("temp", exist_ok=True)
+        path = f"temp/img.png"
+        with open(path, "wb") as f:
             f.write(downloaded)
-        img = Image.open("img.png").convert("RGBA")
+        img = Image.open(path).convert("RGBA")
         img.thumbnail((512,512), Image.Resampling.LANCZOS)
-        img.save("sticker.webp","WEBP")
-        with open("sticker.webp","rb") as s:
-            kaori.send_sticker(msg.chat.id,s)
-        os.remove("img.png")
-        os.remove("sticker.webp")
+        sticker_path = "temp/sticker.webp"
+        img.save(sticker_path, "WEBP")
+        with open(sticker_path, "rb") as s:
+            kaori.send_sticker(msg.chat.id, s)
+        os.remove(path)
+        os.remove(sticker_path)
     except Exception as e:
-        kaori.send_message(msg.chat.id,f"⚠️ Erro:\n{e}")
+        kaori.send_message(msg.chat.id, f"⚠️ Erro:\n{e}")
 
 # -------------------------
-# COMANDOS DE DIVERSÃO
-# -------------------------
-@kaori.message_handler(commands=['joke'])
-def joke(msg):
-    piadas = [
-        "Por que o livro foi ao médico? Porque ele tinha muitas páginas!",
-        "O que é verde e fica no canto da sala? Um canto verde 😆",
-        "Por que o computador foi ao médico? Porque estava com vírus!"
-    ]
-    kaori.send_message(msg.chat.id, random.choice(piadas))
-
-@kaori.message_handler(commands=['fact'])
-def fact(msg):
-    curiosidades = [
-        "O mel nunca estraga.",
-        "As girafas não têm cordas vocais.",
-        "Os crocodilos não conseguem colocar a língua para fora."
-    ]
-    kaori.send_message(msg.chat.id, random.choice(curiosidades))
-
-@kaori.message_handler(commands=['quote'])
-def quote(msg):
-    citacoes = [
-        "O sucesso é a soma de pequenos esforços repetidos dia após dia.",
-        "Acredite em si mesmo!",
-        "Faça hoje o que outros não querem, amanhã terá o que outros sonham."
-    ]
-    kaori.send_message(msg.chat.id, random.choice(citacoes))
-
-# -------------------------
-# COMANDO /PLAY - SoundCloud / Spotify
+# PLAY MUSIC (Spotify + SoundCloud)
 # -------------------------
 @kaori.message_handler(commands=['play'])
 def play(msg):
-    query = msg.text.replace("/play","").strip()
+    query = msg.text.replace("/play", "").strip()
     if not query:
-        kaori.reply_to(msg,"🌻 Use:\n/play nome ou link da música")
+        kaori.reply_to(msg, "🌻 Use:\n/play nome ou link da música")
         return
 
-    status = kaori.send_message(msg.chat.id,f"🎧 Procurando: {query}")
+    status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
 
     try:
-        from spotdl import Spotdl
-        s = Spotdl()
-        # baixa música para arquivo temporário
-        filename = s.download(query, output="music.mp3")
-        kaori.edit_message_text(f"🎵 Enviando música...", msg.chat.id, status.message_id)
-        with open("music.mp3","rb") as audio:
-            kaori.send_audio(msg.chat.id,audio)
-        os.remove("music.mp3")
+        os.makedirs("music", exist_ok=True)
+        s = Spotdl(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET)
+        file_path = s.download_track(query)  # retorna o caminho do mp3 baixado
+        kaori.edit_message_text(f"🎵 Enviando: {os.path.basename(file_path)}", msg.chat.id, status.message_id)
+        with open(file_path, "rb") as audio:
+            kaori.send_audio(msg.chat.id, audio, title=os.path.basename(file_path))
+        os.remove(file_path)
     except Exception as e:
         kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
 
 # -------------------------
-# EXECUTAR BOT
+# PIN / UNPIN
 # -------------------------
-print("🌻 Kaori iniciada")
+@kaori.message_handler(commands=['pin'])
+def pin(msg):
+    if msg.reply_to_message:
+        kaori.pin_chat_message(msg.chat.id, msg.reply_to_message.message_id)
+
+@kaori.message_handler(commands=['unpin'])
+def unpin(msg):
+    kaori.unpin_all_chat_messages(msg.chat.id)
+
+# -------------------------
+# JOKE / FACT / QUOTE
+# -------------------------
+@kaori.message_handler(commands=['joke'])
+def joke(msg):
+    r = requests.get("https://v2.jokeapi.dev/joke/Any?lang=pt").json()
+    if r.get("type") == "single":
+        kaori.send_message(msg.chat.id, r.get("joke"))
+    else:
+        kaori.send_message(msg.chat.id, f"{r.get('setup')}\n\n{r.get('delivery')}")
+
+@kaori.message_handler(commands=['fact'])
+def fact(msg):
+    r = requests.get("https://uselessfacts.jsph.pl/random.json?language=pt").json()
+    kaori.send_message(msg.chat.id, r.get("text"))
+
+@kaori.message_handler(commands=['quote'])
+def quote(msg):
+    r = requests.get("https://api.quotable.io/random?tags=technology,famous-quotes").json()
+    kaori.send_message(msg.chat.id, f"💡 {r.get('content')} — {r.get('author')}")
+
+# -------------------------
+# RUN
+# -------------------------
+print("🌻 Kaori iniciada com sucesso!")
 kaori.infinity_polling()
