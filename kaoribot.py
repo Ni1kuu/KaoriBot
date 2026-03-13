@@ -1,52 +1,34 @@
 import os
 import time
-import telebot
 import requests
 import wikipedia
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# -------------------------
-# VARIÁVEIS
-# -------------------------
 TOKEN = os.getenv("BOT_TOKEN")
-PIXABAY_KEY = os.getenv("PIXABAY_KEY")
-GIPHY_KEY = os.getenv("GIPHY_KEY")
+GIPHY = os.getenv("GIPHY_KEY")
 
-BOT_VERSION = "2.6.3-mini"
-CREATOR = "@ni1ckkj"
+inicio = time.time()
 
-start_time = time.time()
-kaori = telebot.TeleBot(TOKEN)
-
-# -------------------------
-# FUNÇÕES AUXILIARES
-# -------------------------
-def uptime_str():
-    uptime = int(time.time() - start_time)
-    h = uptime // 3600
-    m = (uptime % 3600) // 60
-    s = uptime % 60
+def uptime():
+    u = int(time.time() - inicio)
+    h = u // 3600
+    m = (u % 3600) // 60
+    s = u % 60
     return f"{h}h {m}m {s}s"
 
-def safe_send(func, *args, **kwargs):
-    try:
-        func(*args, **kwargs)
-    except:
-        pass
 
-# -------------------------
-# /START
-# -------------------------
-@kaori.message_handler(commands=['start'])
-def start(msg):
-    texto = f"Olá {msg.from_user.first_name}! 🌻\nEu sou Kaori, sua assistente. Use /menu para ver os comandos."
-    safe_send(kaori.send_message, msg.chat.id, texto)
+# START
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🌻 Olá! Eu sou a Kaori!\nUse /menu para ver meus comandos."
+    )
 
-# -------------------------
-# /MENU
-# -------------------------
-@kaori.message_handler(commands=['menu'])
-def menu(msg):
-    texto = f"""
+
+# MENU
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    texto = """
 🌻 COMANDOS KAORI 🌻
 
 ╭━━👤 Usuário━━╮
@@ -71,96 +53,242 @@ def menu(msg):
 /shortlink → Encurtar link
 
 ╰━━━━━━━━━━━━━━━━━━━━╯
-Versão: {BOT_VERSION}
 """
-    safe_send(kaori.send_message, msg.chat.id, texto)
 
-# -------------------------
-# /INFO
-# -------------------------
-@kaori.message_handler(commands=['info'])
-def info(msg):
-    texto = f"""
-Kaori {BOT_VERSION}  
-Criador: {CREATOR}  
-Uptime: {uptime_str()}
+    await update.message.reply_text(texto)
+
+
+# INFO
+async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text(
+        f"""🌻 KAORI BOT 🌻
+
+Criador: Nikuu 
+Versão: 1.0
+Criação: 09/03/2026
+Uptime: {uptime()}
 """
-    safe_send(kaori.send_message, msg.chat.id, texto)
+    )
 
-# -------------------------
-# /PING
-# -------------------------
-@kaori.message_handler(commands=['ping'])
-def ping(msg):
-    start = time.time()
-    kaori.send_chat_action(msg.chat.id, 'typing')
-    elapsed = round((time.time() - start) * 1000)
-    safe_send(kaori.send_message, msg.chat.id, f"Pong! {elapsed} ms")
 
-# -------------------------
-# /IMG (Pixabay)
-# -------------------------
-@kaori.message_handler(commands=['img'])
-def img(msg):
-    query = msg.text.replace("/img", "").strip()
-    if not PIXABAY_KEY:
-        safe_send(kaori.send_message, msg.chat.id, "❌ API key do Pixabay não configurada")
-        return
-    if not query:
-        safe_send(kaori.reply_to, msg, "Use:\n/img termo")
-        return
+# WHOAMI
+async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.effective_user
+
+    await update.message.reply_text(
+        f"""👤 Seu Perfil
+
+Nome: {user.first_name}
+ID: {user.id}
+Username: @{user.username}
+"""
+    )
+
+
+# AVATAR
+async def avatar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.effective_user
+
+    fotos = await context.bot.get_user_profile_photos(user.id)
+
+    if fotos.total_count > 0:
+        await update.message.reply_photo(
+            fotos.photos[0][-1].file_id
+        )
+    else:
+        await update.message.reply_text("Usuário não tem avatar.")
+
+
+# PING
+async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    inicio_ping = time.time()
+
+    msg = await update.message.reply_text("🏓 Pong...")
+
+    fim = time.time()
+
+    ms = int((fim - inicio_ping) * 1000)
+
+    await msg.edit_text(f"🏓 Pong: {ms}ms")
+
+
+# CLEAR
+async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     try:
-        r = requests.get(f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={query}&image_type=photo").json()
-        if r['hits']:
-            safe_send(kaori.send_photo, msg.chat.id, r['hits'][0]['largeImageURL'])
-        else:
-            safe_send(kaori.send_message, msg.chat.id, "❌ Nenhuma imagem encontrada")
+        for i in range(1, 50):
+            await context.bot.delete_message(
+                update.effective_chat.id,
+                update.message.message_id - i
+            )
     except:
-        safe_send(kaori.send_message, msg.chat.id, "❌ Erro ao buscar imagem")
+        pass
 
-# -------------------------
-# /GIF (Giphy)
-# -------------------------
-@kaori.message_handler(commands=['gif'])
-def gif(msg):
-    query = msg.text.replace("/gif", "").strip()
-    if not GIPHY_KEY:
-        safe_send(kaori.send_message, msg.chat.id, "❌ API key do Giphy não configurada")
+
+# PIN
+async def pin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if update.message.reply_to_message:
+
+        await context.bot.pin_chat_message(
+            update.effective_chat.id,
+            update.message.reply_to_message.message_id
+        )
+
+    else:
+        await update.message.reply_text(
+            "Responda a mensagem que deseja fixar."
+        )
+
+
+# UNPIN
+async def unpin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await context.bot.unpin_chat_message(update.effective_chat.id)
+
+
+# GOOGLE
+async def google(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.args:
+        await update.message.reply_text("Use: /google algo")
         return
-    if not query:
-        safe_send(kaori.reply_to, msg, "Use:\n/gif termo")
+
+    query = " ".join(context.args)
+
+    link = f"https://www.google.com/search?q={query}"
+
+    await update.message.reply_text(link)
+
+
+# IMG
+async def img(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.args:
+        await update.message.reply_text("Use: /img algo")
         return
+
+    query = " ".join(context.args)
+
+    url = f"https://source.unsplash.com/600x400/?{query}"
+
+    await update.message.reply_photo(url)
+
+
+# GIF
+async def gif(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.args:
+        await update.message.reply_text("Use: /gif algo")
+        return
+
+    query = " ".join(context.args)
+
+    url = f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY}&q={query}&limit=1"
+
+    data = requests.get(url).json()
+
     try:
-        r = requests.get(f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_KEY}&q={query}&limit=1&rating=g").json()
-        gif_url = r["data"][0]["images"]["original"]["url"]
-        safe_send(kaori.send_animation, msg.chat.id, gif_url)
-    except:
-        safe_send(kaori.send_message, msg.chat.id, "❌ Nenhum gif encontrado")
+        gif_url = data["data"][0]["images"]["original"]["url"]
 
-# -------------------------
-# /WIKI
-# -------------------------
-@kaori.message_handler(commands=['wiki'])
-def wiki(msg):
-    query = msg.text.replace("/wiki","").strip()
-    if not query:
-        safe_send(kaori.reply_to, msg, "Use:\n/wiki termo")
-        return
+        await update.message.reply_animation(gif_url)
+
+    except:
+        await update.message.reply_text("Gif não encontrado.")
+
+
+# WIKI LINK
+async def wiki(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    wikipedia.set_lang("pt")
+
+    query = " ".join(context.args)
+
     try:
-        resultado = wikipedia.summary(query, sentences=3, auto_suggest=True)
-        safe_send(kaori.send_message, msg.chat.id, resultado)
+
+        page = wikipedia.page(query)
+
+        await update.message.reply_text(page.url)
+
     except:
-        safe_send(kaori.send_message, msg.chat.id, "❌ Nenhum resultado encontrado")
 
-# -------------------------
-# ANTI-CRASH
-# -------------------------
-@kaori.message_handler(func=lambda m: True)
-def fallback(msg):
-    safe_send(kaori.send_message, msg.chat.id, "Desculpe, não entendi. 😅")
+        await update.message.reply_text("Não encontrei isso.")
 
-# -------------------------
-# RUN
-# -------------------------
-print(f"🌻 Kaori {BOT_VERSION} iniciada")
-kaori.infinity_polling()
+
+# WIKI RESUMO
+async def wikiing(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    wikipedia.set_lang("pt")
+
+    query = " ".join(context.args)
+
+    try:
+
+        resumo = wikipedia.summary(query, sentences=3)
+
+        await update.message.reply_text(resumo)
+
+    except:
+
+        await update.message.reply_text("Não encontrei isso.")
+
+
+# TRADUZIR
+async def traduza(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    texto = " ".join(context.args)
+
+    url = f"https://api.mymemory.translated.net/get?q={texto}&langpair=auto|pt"
+
+    r = requests.get(url).json()
+
+    traducao = r["responseData"]["translatedText"]
+
+    await update.message.reply_text(traducao)
+
+
+# SHORTLINK
+async def shortlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.args:
+        await update.message.reply_text("Use: /shortlink link")
+        return
+
+    link = context.args[0]
+
+    api = f"https://tinyurl.com/api-create.php?url={link}"
+
+    short = requests.get(api).text
+
+    await update.message.reply_text(short)
+
+
+# BOT
+app = ApplicationBuilder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("menu", menu))
+app.add_handler(CommandHandler("info", info))
+app.add_handler(CommandHandler("whoami", whoami))
+app.add_handler(CommandHandler("avatar", avatar))
+
+app.add_handler(CommandHandler("ping", ping))
+app.add_handler(CommandHandler("clear", clear))
+app.add_handler(CommandHandler("pin", pin))
+app.add_handler(CommandHandler("unpin", unpin))
+
+app.add_handler(CommandHandler("google", google))
+app.add_handler(CommandHandler("img", img))
+app.add_handler(CommandHandler("gif", gif))
+app.add_handler(CommandHandler("wiki", wiki))
+app.add_handler(CommandHandler("wikiing", wikiing))
+app.add_handler(CommandHandler("traduza", traduza))
+app.add_handler(CommandHandler("shortlink", shortlink))
+
+print("🌻 Kaori está online!")
+
+app.run_polling()
