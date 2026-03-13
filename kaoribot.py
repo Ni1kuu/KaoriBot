@@ -102,6 +102,8 @@ def ping(m):
 @bot.message_handler(commands=['waifu','waifunsfw'])
 def waifu(m):
     chat_type = m.chat.type  # 'private', 'group', 'supergroup'
+
+    # Escolher SFW ou NSFW
     if m.text.startswith("/waifunsfw"):
         if chat_type != "private":
             bot.reply_to(m,"🚫 NSFW só no chat privado!")
@@ -109,10 +111,10 @@ def waifu(m):
         url_api = "https://api.waifu.pics/nsfw/waifu"
     else:
         url_api = "https://api.waifu.pics/sfw/waifu"
+
     try:
-        r = requests.get(url_api)
-        data = r.json()
-        img = data["images"][0]["url"]
+        r = requests.get(url_api).json()
+        img = r["url"]  # <-- Correção aqui
         waifu_atual[m.chat.id] = img
         bot.send_photo(m.chat.id, img, caption="💛 Uma waifu apareceu!\nUse /capturar")
     except:
@@ -150,7 +152,7 @@ def rank(m):
     bot.send_message(m.chat.id,txt)
 
 # ======================
-# GIF ANIME via Tenor
+# GIF ANIME via Giphy
 # ======================
 @bot.message_handler(commands=['gif'])
 def gif(m):
@@ -160,17 +162,20 @@ def gif(m):
             termo = "anime " + " ".join(args[1:])
         else:
             termo = "anime"
-        url = f"https://tenor.googleapis.com/v2/search?q={termo}&key={TENOR_KEY}&limit=20"
+
+        url = f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_KEY}&q={termo}&limit=25&rating=pg"
         r = requests.get(url).json()
-        resultados = r.get("results",[])
+        resultados = r.get("data", [])
         if not resultados:
-            bot.reply_to(m,"💛 Não encontrei nenhum gif!")
+            bot.reply_to(m,"💛 Não encontrei GIFs!")
             return
-        gif_escolhido = random.choice(resultados)
-        link = gif_escolhido["media_formats"]["gif"]["url"]
+        escolhido = random.choice(resultados)
+        link = escolhido["images"]["original"]["url"]
         bot.send_animation(m.chat.id, link)
-    except:
-        bot.reply_to(m,"💛 Erro ao buscar gif!")
+
+    except Exception as e:
+        print("Erro GIF:", e)
+        bot.reply_to(m,"💛 Erro ao buscar GIF!")
 
 # ======================
 # HUG / KISS
