@@ -42,7 +42,7 @@ def menu(message):
         "💛 /pin – Fixar a última mensagem do chat\n"
         "💛 /unpin – Desafixar mensagens fixadas\n\n"
         "💛 🌸 DIVERSÃO:\n"
-        "💛 /anime – Puxar waifu aleatória de anime\n"
+        "💛 /waifu – Puxar waifu aleatória de anime\n"
         "╰━━━━━━━━━━━━━━━━━━━━╯"
     )
     bot.reply_to(message, menu_text)
