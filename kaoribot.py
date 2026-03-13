@@ -82,8 +82,11 @@ def menu(msg):
 /img imagem
 /wiki termo
 
-🎧 Música
-/play nome ou link
+🎬 YouTube
+/yt → baixar vídeo
+/play → baixar música
+/ytthumb → thumbnail
+/ytinfo → informações
 
 🖼 Figurinhas
 envie imagem
@@ -343,6 +346,83 @@ def play(msg):
 
     except Exception as e:
         kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
+
+# -------------------------
+# /YTTHUMB pegar thumbnail
+# -------------------------
+@kaori.message_handler(commands=['ytthumb'])
+def ytthumb(msg):
+    import yt_dlp
+
+    query = msg.text.replace("/ytthumb", "").strip()
+
+    if not query:
+        kaori.reply_to(msg, "📸 Use:\n/ytthumb link ou nome")
+        return
+
+    try:
+        ydl_opts = {
+            "quiet": True,
+            "default_search": "ytsearch1"
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(query, download=False)
+
+        thumb = info.get("thumbnail")
+        title = info.get("title")
+
+        kaori.send_photo(msg.chat.id, thumb, caption=f"📸 {title}")
+
+    except:
+        kaori.send_message(msg.chat.id, "❌ Não consegui pegar thumbnail.")
+
+# -------------------------
+# /YTINFO informações do vídeo
+# -------------------------
+@kaori.message_handler(commands=['ytinfo'])
+def ytinfo(msg):
+    import yt_dlp
+
+    query = msg.text.replace("/ytinfo", "").strip()
+
+    if not query:
+        kaori.reply_to(msg, "📺 Use:\n/ytinfo link ou nome")
+        return
+
+    try:
+        ydl_opts = {
+            "quiet": True,
+            "default_search": "ytsearch1"
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(query, download=False)
+
+        title = info.get("title")
+        channel = info.get("uploader")
+        views = info.get("view_count")
+        duration = info.get("duration")
+
+        if duration:
+            minutos = duration // 60
+            segundos = duration % 60
+            tempo = f"{minutos}:{segundos:02d}"
+        else:
+            tempo = "?"
+
+        texto = f"""
+🎬 {title}
+
+📺 Canal: {channel}
+👁 Views: {views}
+⏱ Duração: {tempo}
+"""
+
+        kaori.send_message(msg.chat.id, texto)
+
+    except:
+        kaori.send_message(msg.chat.id, "❌ Não consegui pegar informações.")
 
 # -------------------------
 # RUN
