@@ -298,15 +298,14 @@ def play(msg):
             "nocheckcertificate":True
         }
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+       filename = ydl.prepare_filename(info)
 
-            info = ydl.extract_info(query,download=True)
-
-            filename = ydl.prepare_filename(info)
-
-        title = info.get("title")
-        thumb = info.get("thumbnail")
-        duration = info.get("duration")
+if not os.path.exists(filename):
+    for ext in ["webm","m4a","mp3","opus"]:
+        test = f"music/audio.{ext}"
+        if os.path.exists(test):
+            filename = test
+            break
 
         if thumb:
 
