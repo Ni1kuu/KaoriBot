@@ -26,8 +26,11 @@ def start(message):
 # /ping - ping rápido
 @bot.message_handler(commands=['ping'])
 def ping(message):
-    latency = int((time.time() - start_time) * 1000)
-    bot.reply_to(message, f"🏓 Pong! Latência: {latency}ms")
+    start = time.time()
+    msg = bot.send_message(message.chat.id, "🏓 Pingando...")
+    end = time.time()
+    latency = int((end - start) * 1000)  # em ms
+    bot.edit_message_text(f"🏓 Pong! Latência: {latency}ms", message.chat.id, msg.message_id)
 
 # /menu - menu estilizado com blocos
 @bot.message_handler(commands=['menu'])
