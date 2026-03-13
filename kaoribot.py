@@ -13,12 +13,13 @@ import math
 # VARIÁVEIS
 # -------------------------
 TOKEN = os.getenv("BOT_TOKEN")
-GENIUS_KEY = os.getenv("GENIUS_KEY")
-OPENAI_KEY = os.getenv("OPENAI_KEY")
-OWM_KEY = os.getenv("OWM_KEY")
+PIXABAY_KEY = os.getenv("PIXABAY_KEY")
 GIPHY_KEY = os.getenv("GIPHY_KEY")
+GENIUS_KEY = os.getenv("GENIUS_KEY")
+OWM_KEY = os.getenv("OWM_KEY")
+OPENAI_KEY = os.getenv("OPENAI_KEY")
 
-BOT_VERSION = "2.6.2"
+BOT_VERSION = "2.6.3"
 CREATOR = "@ni1ckkj"
 
 start_time = time.time()
@@ -42,12 +43,12 @@ def progress_bar(duration):
 @kaori.message_handler(commands=['start'])
 def start(msg):
     texto = f"""
-╭━━━🌻 COMANDOS KAORI 🌻━━━╮
+╭━━━🌻 COMANDOS DA KAORI 🌻━━━╮
 
-Olá {msg.from_user.first_name} ✨
-Eu sou **Kaori**, sua assistente.
+Olá {msg.from_user.first_name} ꒰ᐢ. .ᐢ꒱₊˚⊹ ✨
+Eu sou a Kaori, sua assistente.
 
-Use /menu para ver comandos 🌻
+Use /menu para ver comandose divirta-se!🌻
 
 ╰━━━━━━━━━━━━━━━━━━━━╯
 """
@@ -67,13 +68,12 @@ def menu(msg):
 /info → informações
 
 ⚡ Sistema
-/ping → ping
+/ping
 
 🔎 Pesquisa
-/google termo
+/google texto
+/img termo
 /gif termo
-/meme → meme em português
-/quote → quote aleatória
 
 🎬 YouTube
 /play → baixar música
@@ -85,8 +85,9 @@ def menu(msg):
 
 🎨 Diversão e arte
 /anime → imagem de anime aleatória
-/envgif → vídeo para gif
-/fig → responder imagem ou GIF para sticker
+/meme → meme aleatório
+/fig → transformar imagem em figurinha
+/quote → quote aleatória
 /merece → frase motivacional
 
 🌤 Clima
@@ -96,7 +97,7 @@ def menu(msg):
 /ai → resposta estilo IA
 
 🎲 Diversão rápida
-/8ball → bola 8
+/oracle → respostas do oráculo
 /dice → jogar dado
 /calc → calculadora
 
@@ -152,6 +153,25 @@ def google(msg):
         return
     link = f"https://www.google.com/search?q={query}"
     kaori.send_message(msg.chat.id, f"🔎 {query}\n{link}")
+
+# -------------------------
+# /IMG
+# -------------------------
+@kaori.message_handler(commands=['img'])
+def img(msg):
+    if not PIXABAY_KEY:
+        kaori.send_message(msg.chat.id, "❌ API key do Pixabay não configurada")
+        return
+    query = msg.text.replace("/img", "").strip()
+    if not query:
+        kaori.reply_to(msg, "Use:\n/img termo")
+        return
+    url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={query}&image_type=photo"
+    r = requests.get(url).json()
+    if r["hits"]:
+        kaori.send_photo(msg.chat.id, r["hits"][0]["largeImageURL"])
+    else:
+        kaori.send_message(msg.chat.id, "❌ Nenhuma imagem encontrada")
 
 # -------------------------
 # /GIF
@@ -221,12 +241,24 @@ def quote(msg):
         kaori.send_message(msg.chat.id, "❌ Não consegui pegar quote")
 
 # -------------------------
-# /8BALL
+# /ORACLE (/8BALL atualizado)
 # -------------------------
-@kaori.message_handler(commands=['8ball'])
-def eightball(msg):
-    respostas = ["Sim", "Não", "Talvez", "Com certeza", "Não sei", "Provavelmente"]
-    kaori.send_message(msg.chat.id, random.choice(respostas))
+respostas_oracle = [
+    "Sim, sem dúvidas ✨",
+    "Não conte com isso ❌",
+    "Talvez, o futuro é incerto 🔮",
+    "Com certeza! 💫",
+    "Não sei 🤷‍♀️",
+    "Provavelmente ✅",
+    "Pergunte novamente mais tarde ⏳",
+    "Meu conselho é… confie na sua intuição 💭",
+    "As estrelas dizem que sim 🌟",
+    "Não agora, espere um pouco ⏱"
+]
+
+@kaori.message_handler(commands=['oracle'])
+def oracle(msg):
+    kaori.send_message(msg.chat.id, random.choice(respostas_oracle))
 
 # -------------------------
 # /DICE
@@ -273,33 +305,139 @@ def ai(msg):
         kaori.send_message(msg.chat.id, "❌ Erro ao processar IA")
 
 # -------------------------
-# /FIG - responder imagem
+# /FIG (imagem apenas)
 # -------------------------
-@kaori.message_handler(commands=['fig'])
+@kaori.message_handler(content_types=['photo'])
 def fig(msg):
     try:
-        if not msg.reply_to_message or msg.reply_to_message.content_type != "photo":
-            kaori.send_message(msg.chat.id, "⚠️ Responda a uma imagem com /fig para transformá-la em figurinha")
-            return
-
         os.makedirs("temp", exist_ok=True)
-        file_info = kaori.get_file(msg.reply_to_message.photo[-1].file_id)
+        file_info = kaori.get_file(msg.photo[-1].file_id)
         downloaded = kaori.download_file(file_info.file_path)
-
-        input_path = "temp/input.png"
-        with open(input_path, "wb") as f:
+        with open("temp/input.png", "wb") as f:
             f.write(downloaded)
-
-        from PIL import Image
-        img = Image.open(input_path).convert("RGBA")
+        img = Image.open("temp/input.png").convert("RGBA")
         img.thumbnail((512,512))
-        img.save("temp/sticker.webp","WEBP")
-
+        img.save("temp/sticker.webp", "WEBP")
         with open("temp/sticker.webp","rb") as s:
-            kaori.send_sticker(msg.chat.id, s)
-
+            kaori.send_sticker(msg.chat.id,s)
     except Exception as e:
-        kaori.send_message(msg.chat.id, f"❌ Erro ao criar figurinha:\n{e}")
+        kaori.send_message(msg.chat.id,f"Erro:\n{e}")
+
+# -------------------------
+# /PLAY
+# -------------------------
+@kaori.message_handler(commands=['play'])
+def play(msg):
+    query = msg.text.replace("/play","").strip()
+    if not query:
+        kaori.reply_to(msg, "🌻 Use:\n/play link ou nome da música")
+        return
+    status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
+    try:
+        os.makedirs("music", exist_ok=True)
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": "music/%(title)s.%(ext)s",
+            "quiet": True,
+            "noplaylist": True,
+            "default_search": "ytsearch",
+            "postprocessors": [{"key":"FFmpegExtractAudio","preferredcodec":"mp3","preferredquality":"192"}]
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(query, download=True)
+            filename = ydl.prepare_filename(info)
+        if not os.path.exists(filename):
+            for ext in ["mp3","webm","m4a","opus"]:
+                test = f"music/{info['title']}.{ext}"
+                if os.path.exists(test):
+                    filename = test
+                    break
+        title = info.get("title")
+        with open(filename,"rb") as audio:
+            kaori.send_audio(msg.chat.id, audio, title=title)
+        kaori.edit_message_text(f"🎵 Tocando: {title}", msg.chat.id, status.message_id)
+    except Exception as e:
+        kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
+
+# -------------------------
+# /YTTHUMB
+# -------------------------
+@kaori.message_handler(commands=['ytthumb'])
+def ytthumb(msg):
+    query = msg.text.replace("/ytthumb","").strip()
+    if not query:
+        kaori.reply_to(msg, "📸 Use:\n/ytthumb link ou nome")
+        return
+    try:
+        with yt_dlp.YoutubeDL({"quiet":True,"default_search":"ytsearch1"}) as ydl:
+            info = ydl.extract_info(query, download=False)
+        kaori.send_photo(msg.chat.id, info.get("thumbnail"), caption=info.get("title"))
+    except:
+        kaori.send_message(msg.chat.id,"❌ Não consegui pegar thumbnail.")
+
+# -------------------------
+# /YTINFO
+# -------------------------
+@kaori.message_handler(commands=['ytinfo'])
+def ytinfo(msg):
+    query = msg.text.replace("/ytinfo","").strip()
+    if not query:
+        kaori.reply_to(msg, "📺 Use:\n/ytinfo link ou nome")
+        return
+    try:
+        with yt_dlp.YoutubeDL({"quiet":True,"default_search":"ytsearch1"}) as ydl:
+            info = ydl.extract_info(query, download=False)
+        duration = info.get("duration")
+        tempo = f"{duration//60}:{duration%60:02d}" if duration else "?"
+        texto = f"🎬 {info.get('title')}\n📺 Canal: {info.get('uploader')}\n👁 Views: {info.get('view_count')}\n⏱ Duração: {tempo}"
+        kaori.send_message(msg.chat.id, texto)
+    except:
+        kaori.send_message(msg.chat.id,"❌ Não consegui pegar informações.")
+
+# -------------------------
+# /JOKE
+# -------------------------
+@kaori.message_handler(commands=['joke'])
+def joke(msg):
+    try:
+        r = requests.get("https://v2.jokeapi.dev/joke/Any?lang=pt").json()
+        kaori.send_message(msg.chat.id, r.get("joke") if r["type"]=="single" else f"{r['setup']}\n{r['delivery']}")
+    except:
+        kaori.send_message(msg.chat.id,"❌ Erro ao buscar piada")
+
+# -------------------------
+# /FACT
+# -------------------------
+@kaori.message_handler(commands=['fact'])
+def fact(msg):
+    try:
+        r = requests.get("https://uselessfacts.jsph.pl/random.json?language=pt").json()
+        kaori.send_message(msg.chat.id,r["text"])
+    except:
+        kaori.send_message(msg.chat.id,"❌ Erro ao buscar fato")
+
+# -------------------------
+# CHAT COM BOT
+# -------------------------
+@kaori.message_handler(func=lambda m: True, content_types=['text'])
+def chat(msg):
+    if msg.text.startswith("/"):
+        return
+    if not OPENAI_KEY:
+        kaori.send_message(msg.chat.id, "❌ API do OpenAI não configurada para conversar 😢")
+        return
+    try:
+        import openai
+        openai.api_key = OPENAI_KEY
+        response = openai.Completion.create(
+            model="text-davinci-003",
+            prompt=f"Você é Kaori, uma assistente simpática. Responda de forma curta e amigável ao usuário: {msg.text}",
+            temperature=0.7,
+            max_tokens=150
+        )
+        kaori.send_message(msg.chat.id, response["choices"][0]["text"].strip())
+    except Exception as e:
+        kaori.send_message(msg.chat.id, f"❌ Erro ao conversar:\n{e}")
 
 # -------------------------
 # RUN
