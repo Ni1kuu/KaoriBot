@@ -19,7 +19,7 @@ GENIUS_KEY = os.getenv("GENIUS_KEY")
 OWM_KEY = os.getenv("OWM_KEY")
 OPENAI_KEY = os.getenv("OPENAI_KEY")
 
-BOT_VERSION = "2.6.2"
+BOT_VERSION = "2.6.3"
 CREATOR = "@ni1ckkj"
 
 start_time = time.time()
