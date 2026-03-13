@@ -16,7 +16,7 @@ bot = telebot.TeleBot(TOKEN)
 # /start
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, "💛 A Kaori está on! 😎💛\nUse /menu para ver todos os meus comandos.")
+    bot.reply_to(message, "💛 Olá! Eu sou a KaoriBot 💛\nUse /menu para ver todos os comandos.")
 
 # /ping - tempo de resposta em segundos
 @bot.message_handler(commands=['ping'])
@@ -39,7 +39,7 @@ def menu(message):
         "💛 /menu – Ver este menu\n\n"
         "💛 📌 FIXAR MENSAGENS:\n"
         "💛 /pin – Fixar a última mensagem do chat\n"
-        "💛 /unpin – Desafixar mensagens fixadas\n\n"
+        "💛 /unpin – Desafixar mensagens fixadas (resposta ou todas)\n\n"
         "💛 🌸 DIVERSÃO:\n"
         "💛 /waifu – Puxar waifu aleatória\n"
         "💛 /hug – Enviar abraço em GIF (Giphy)\n"
@@ -55,7 +55,8 @@ def menu(message):
         "💛 /chatinfo – Info do chat\n"
         "💛 /say – O bot repete o que você digitar\n"
         "💛 /avatar – Mostra sua foto de perfil\n"
-        "💛 /clear – Limpar últimas N mensagens (admin)\n"
+        "💛 /clear – Limpar últimas N mensagens (bot e admin)\n"
+        "💛 /clearall – Apagar mensagens (bot ou grupo, dependendo do chat)\n"
         "💛 /search – Pesquisa no Google e retorna link\n"
         "╰━━━━━━━━━━━━━━━━━━━━╯"
     )
@@ -63,6 +64,7 @@ def menu(message):
 
 # -------------------------
 # PIN / UNPIN
+
 @bot.message_handler(commands=['pin'])
 def pin(message):
     try:
@@ -71,11 +73,18 @@ def pin(message):
     except Exception as e:
         bot.reply_to(message, f"💛 Erro ao fixar: {e}")
 
+# /unpin inteligente
 @bot.message_handler(commands=['unpin'])
 def unpin(message):
     try:
-        bot.unpin_all_chat_messages(message.chat.id)
-        bot.reply_to(message, "💛 Todas as mensagens fixadas foram desafixadas!")
+        # Se estiver respondendo a uma mensagem, desfixa apenas ela
+        if message.reply_to_message:
+            bot.unpin_chat_message(message.chat.id, message.reply_to_message.message_id)
+            bot.reply_to(message, "💛 Mensagem desfixada com sucesso!")
+        else:
+            # Caso contrário, desfixa todas
+            bot.unpin_all_chat_messages(message.chat.id)
+            bot.reply_to(message, "💛 Todas as mensagens fixadas foram desafixadas!")
     except Exception as e:
         bot.reply_to(message, f"💛 Erro ao desafixar: {e}")
 
@@ -211,19 +220,42 @@ def avatar(message):
     except Exception as e:
         bot.reply_to(message, f"💛 Erro ao buscar avatar: {e}")
 
-# /clear
+# /clear - apagar últimas N mensagens possíveis
 @bot.message_handler(commands=['clear'])
 def clear(message):
     try:
         quantidade = int(message.text.replace('/clear','').strip())
+        deleted = 0
         for msg_id in range(message.message_id-quantidade, message.message_id):
             try:
                 bot.delete_message(message.chat.id, msg_id)
+                deleted += 1
             except:
                 pass
-        bot.reply_to(message, f"💛 Limpei {quantidade} mensagens!")
+        bot.reply_to(message, f"💛 Tentei apagar {quantidade} mensagens. Apaguei {deleted}.")
     except:
         bot.reply_to(message, "💛 Use: /clear [quantidade de mensagens]")
+
+# /clearall - apaga mensagens em chat privado ou grupo
+@bot.message_handler(commands=['clearall'])
+def clear_all(message):
+    deleted = 0
+    if message.chat.type in ["group","supergroup"]:
+        for msg_id in range(message.message_id - 200, message.message_id):
+            try:
+                bot.delete_message(message.chat.id, msg_id)
+                deleted += 1
+            except:
+                pass
+        bot.reply_to(message, f"💛 Tentei apagar 200 mensagens. Apaguei {deleted}.")
+    else:  # chat privado
+        for msg_id in range(message.message_id - 50, message.message_id):
+            try:
+                bot.delete_message(message.chat.id, msg_id)
+                deleted += 1
+            except:
+                pass
+        bot.reply_to(message, f"💛 Tentei apagar 50 mensagens (somente minhas). Apaguei {deleted}.")
 
 # /search - pesquisa no Google
 @bot.message_handler(commands=['search'])
@@ -234,7 +266,7 @@ def search(message):
         link = f"https://www.google.com/search?q={termo_formatado}"
         bot.reply_to(message, f"💛 Resultado da pesquisa:\n{link}")
     else:
-        bot.reply_to(message, "💛 Digite algo para pesquisar! Ex: /search mulheres modelo")
+        bot.reply_to(message, "💛 Digite algo para pesquisar! Ex: /search gatos")
 
 # -------------------------
 # INICIAR BOT
