@@ -23,14 +23,22 @@ start_time = time.time()  # usado para medir latência rápida
 def start(message):
     bot.reply_to(message, "💛 Olá! Eu sou a KaoriBot 💛\nUse /menu para ver todos os comandos.")
 
-# /ping - ping rápido
+# /ping - ping rápido 
 @bot.message_handler(commands=['ping'])
 def ping(message):
-    start = time.time()
-    msg = bot.send_message(message.chat.id, "🏓 Pingando...")
-    end = time.time()
-    latency = int((end - start) * 1000)  # em ms
-    bot.edit_message_text(f"🏓 Pong! Latência: {latency}ms", message.chat.id, msg.message_id)
+    # Envia a mensagem inicial
+    msg = bot.send_message(message.chat.id, "🏓 Pingando")
+    
+    # Simula animação com pontos
+    for i in range(3):
+        time.sleep(0.5)  # espera 0.5s
+        bot.edit_message_text(f"🏓 Pingando{'.'*(i+1)}", message.chat.id, msg.message_id)
+    
+    # Calcula tempo real em ms desde o envio da primeira mensagem
+    latency = int((time.time() - message.date) * 1000)
+    
+    # Mostra o resultado
+    bot.edit_message_text(f"🏓 Pong! Latência real: {latency}ms", message.chat.id, msg.message_id)
 
 # /menu - menu estilizado com blocos
 @bot.message_handler(commands=['menu'])
