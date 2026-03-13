@@ -300,5 +300,17 @@ def chat(msg):
 # -------------------------
 # RUN
 # -------------------------
+import time
+
 print(f"🌻 Kaori {BOT_VERSION} iniciada")
-kaori.infinity_polling()
+
+while True:
+    try:
+        kaori.infinity_polling(
+            timeout=30,
+            long_polling_timeout=30,
+            skip_pending=True
+        )
+    except Exception as e:
+        print(f"⚠️ Erro no polling: {e}")
+        time.sleep(5)
