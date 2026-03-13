@@ -2,20 +2,16 @@ import os
 import time
 import telebot
 import requests
+import random
 
 # -------------------------
 # VARIÁVEIS
 # -------------------------
-TOKEN = os.getenv("BOT_TOKEN")  # Token do bot no .env
+TOKEN = os.getenv("BOT_TOKEN")  # Coloque o token do bot no Railway Secrets
 bot = telebot.TeleBot(TOKEN)
 
 # -------------------------
-# INÍCIO DO BOT
-# -------------------------
-start_time = time.time()  # usado para medir latência rápida
-
-# -------------------------
-# COMANDOS
+# COMANDOS PRINCIPAIS
 # -------------------------
 
 # /start
@@ -23,24 +19,23 @@ start_time = time.time()  # usado para medir latência rápida
 def start(message):
     bot.reply_to(message, "💛 Olá! Eu sou a KaoriBot 💛\nUse /menu para ver todos os comandos.")
 
-# /ping - ping rápido 
+# /ping - ping real com animação
 @bot.message_handler(commands=['ping'])
 def ping(message):
-    start = time.time()  # começa a medir o tempo real
-    # envia a mensagem inicial
-    msg = bot.send_message(message.chat.id, "🏓 Pingando")
+    start = time.time()
+    msg = bot.send_message(message.chat.id, "🏓 Pingando 💛🌻")
     
-    # animação simples
-    for i in range(3):
-        time.sleep(0.3)  # 0.2s entre cada ponto
-        bot.edit_message_text(f"🏓 Pingando{'.'*(i+1)}", message.chat.id, msg.message_id)
+    # animação contínua com pontos
+    for i in range(6):
+        time.sleep(0.3)  # intervalo entre pontos
+        pontos = '.' * ((i % 3) + 1)  # de 1 a 3 pontos
+        bot.edit_message_text(f"🏓 Pingando{pontos} 💛🌻", message.chat.id, msg.message_id)
     
-    # calcula tempo total de ida e volta da API
+    # tempo real da ida e volta da API
     latency = int((time.time() - start) * 1000)
-    
-    bot.edit_message_text(f"🏓 Pong! Latência real: {latency}ms", message.chat.id, msg.message_id)
+    bot.edit_message_text(f"🏓 Pong! Latência real: {latency}ms 💛🌻", message.chat.id, msg.message_id)
 
-# /menu - menu estilizado com blocos
+# /menu - menu estilizado em blocos
 @bot.message_handler(commands=['menu'])
 def menu(message):
     menu_text = (
@@ -53,12 +48,17 @@ def menu(message):
         "💛 /pin – Fixar a última mensagem do chat\n"
         "💛 /unpin – Desafixar mensagens fixadas\n\n"
         "💛 🌸 DIVERSÃO:\n"
-        "💛 /waifu – Puxar waifu aleatória de anime\n"
+        "💛 /waifu – Puxar waifu aleatória\n"
+        "💛 /hug – Enviar abraço em GIF\n"
+        "💛 /kiss – Enviar beijo em GIF\n"
+        "💛 /meme – Puxar meme aleatório em português\n"
         "╰━━━━━━━━━━━━━━━━━━━━╯"
     )
     bot.reply_to(message, menu_text)
 
-# /pin - fixar a última mensagem (bot precisa ser admin)
+# -------------------------
+# PIN / UNPIN
+# -------------------------
 @bot.message_handler(commands=['pin'])
 def pin(message):
     try:
@@ -67,7 +67,6 @@ def pin(message):
     except Exception as e:
         bot.reply_to(message, f"💛 Erro ao fixar: {e}")
 
-# /unpin - desafixar mensagens fixadas
 @bot.message_handler(commands=['unpin'])
 def unpin(message):
     try:
@@ -76,9 +75,10 @@ def unpin(message):
     except Exception as e:
         bot.reply_to(message, f"💛 Erro ao desafixar: {e}")
 
-# /waifu - waifu aleatória do waifu.pics
+# -------------------------
+# /waifu - waifu aleatória
 @bot.message_handler(commands=['waifu'])
-def anime(message):
+def waifu(message):
     try:
         resp = requests.get("https://api.waifu.pics/sfw/waifu").json()
         img_url = resp['url']
@@ -87,7 +87,37 @@ def anime(message):
         bot.reply_to(message, f"💛 Erro ao buscar waifu: {e}")
 
 # -------------------------
-# INICIAR BOT
+# /hug - GIF de abraço
+@bot.message_handler(commands=['hug'])
+def hug(message):
+    hugs = [
+        "https://media.giphy.com/media/od5H3PmEG5EVq/giphy.gif",
+        "https://media.giphy.com/media/l2QDM9Jnim1YVILXa/giphy.gif",
+        "https://media.giphy.com/media/wnsgren9NtITS/giphy.gif"
+    ]
+    bot.send_animation(message.chat.id, random.choice(hugs))
+
+# /kiss - GIF de beijo
+@bot.message_handler(commands=['kiss'])
+def kiss(message):
+    kisses = [
+        "https://media.giphy.com/media/G3va31oEEnIkM/giphy.gif",
+        "https://media.giphy.com/media/FqBTvSNjNzeZG/giphy.gif",
+        "https://media.giphy.com/media/bGm9FuBCGg4SY/giphy.gif"
+    ]
+    bot.send_animation(message.chat.id, random.choice(kisses))
+
+# /meme - meme aleatório em português
+@bot.message_handler(commands=['meme'])
+def meme(message):
+    try:
+        resp = requests.get("https://meme-api.com/gimme/ptbr").json()
+        meme_url = resp['url']
+        bot.send_photo(message.chat.id, meme_url)
+    except:
+        bot.reply_to(message, "💛 Não consegui pegar um meme 😢")
+
 # -------------------------
+# INICIAR BOT
 print("KaoriBot online! 💛")
 bot.infinity_polling()
