@@ -269,60 +269,73 @@ def sticker(msg):
         kaori.send_message(msg.chat.id,f"Erro:\n{e}")
 
 # -------------------------
-# /PLAY
+# /PLAY com yt-dlp + thumb e duração
 # -------------------------
-
 @kaori.message_handler(commands=['play'])
 def play(msg):
+    import os, shlex, subprocess, yt_dlp, time
 
-    query = msg.text.replace("/play","").strip()
-
-    chat_id = msg.chat.id
-
+    query = msg.text.replace("/play", "").strip()
     if not query:
-        kaori.reply_to(msg,"🌻 Use:\n/play nome ou link")
+        kaori.reply_to(msg, "🌻 Use:\n/play link ou nome da música")
         return
 
-    status = kaori.send_message(chat_id,f"🎧 Procurando: {query}")
+    status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
 
     try:
+        # garante que a pasta exista
+        os.makedirs("music", exist_ok=True)
 
-        os.makedirs("music",exist_ok=True)
-
+        # opções do yt-dlp
         ydl_opts = {
-            "format":"bestaudio",
-            "outtmpl": "music/%(title)s.%(ext)s"
-            "noplaylist":True,
-            "quiet":True,
-            "default_search":"ytsearch",
-            "nocheckcertificate":True
+            "format": "bestaudio/best",
+            "outtmpl": "music/%(title)s.%(ext)s",
+            "quiet": True,
+            "noplaylist": True,
+            "extractor_args": {
+                "youtube": {"player_client": ["android"]}
+            },
+            "http_headers": {
+                "User-Agent": "com.google.android.youtube/17.31.35 (Linux; U; Android 11)"
+            },
+            "default_search": "ytsearch",  # busca no YouTube se não for link
+            "postprocessors": [{
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }]
         }
 
-       filename = ydl.prepare_filename(info)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(query, download=True)
+            filename = ydl.prepare_filename(info)
 
-if not os.path.exists(filename):
-    for ext in ["webm","m4a","mp3","opus"]:
-        test = f"music/audio.{ext}"
-        if os.path.exists(test):
-            filename = test
-            break
+        # verifica se o arquivo existe, corrige audio.NA
+        if not os.path.exists(filename):
+            for ext in ["mp3","webm","m4a","opus"]:
+                test = f"music/{info['title']}.{ext}"
+                if os.path.exists(test):
+                    filename = test
+                    break
 
+        title = info.get("title")
+        thumb = info.get("thumbnail")
+        duration = info.get("duration")  # em segundos
+        minutos = duration // 60
+        segundos = duration % 60
+
+        # envia thumb como foto
         if thumb:
+            kaori.send_photo(msg.chat.id, thumb, caption=f"🎵 {title}\n⏱ {minutos}:{segundos:02d}")
 
-            t = requests.get(thumb)
+        # envia áudio
+        with open(filename, "rb") as audio:
+            kaori.send_audio(msg.chat.id, audio, title=title)
 
-            kaori.send_photo(chat_id,BytesIO(t.content),
-            caption=f"🎵 {title}\n\n{progress_bar(duration)}")
-
-        with open(filename,"rb") as audio:
-
-            kaori.send_audio(chat_id,audio,title=title)
-
-        kaori.edit_message_text(f"🎧 Tocando: {title}",chat_id,status.message_id)
+        kaori.edit_message_text(f"🎵 Tocando: {title}", msg.chat.id, status.message_id)
 
     except Exception as e:
-
-        kaori.edit_message_text(f"⚠️ Erro:\n{e}",chat_id,status.message_id)
+        kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
 
 # -------------------------
 # RUN
