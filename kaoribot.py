@@ -7,17 +7,23 @@ from PIL import Image
 import wikipedia
 from io import BytesIO
 import random
+import math
 
 # -------------------------
 # VARIÁVEIS
 # -------------------------
+
 TOKEN = os.getenv("BOT_TOKEN")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
 GIPHY_KEY = os.getenv("GIPHY_KEY")
-BOT_VERSION = "2.4.1"
-CREATOR = "@ni1ckkj"
-start_time = time.time()
+GENIUS_KEY = os.getenv("GENIUS_KEY")
+OWM_KEY = os.getenv("OWM_KEY")
+OPENAI_KEY = os.getenv("OPENAI_KEY")
 
+BOT_VERSION = "2.6.1"
+CREATOR = "@ni1ckkj"
+
+start_time = time.time()
 kaori = telebot.TeleBot(TOKEN)
 music_queue = {}
 
@@ -66,9 +72,9 @@ def menu(msg):
 /ping → ping
 
 🔎 Pesquisa
-/google texto → pesquisa Google
-/img keyword → imagem
-/wiki termo → resumo Wikipedia
+/google texto
+/img imagem
+/gif termo
 
 🎬 YouTube
 /yt → baixar vídeo
@@ -79,31 +85,34 @@ def menu(msg):
 🎶 Música
 /lyrics → letra da música
 
-🎨 Diversão e Arte
+🎨 Diversão e arte
 /anime → imagem de anime aleatória
-/meme → meme aleatório (em português)
-/gif keyword → gif aleatório
-/jokeimg → piada em imagem
+/meme → meme aleatório
+/envgif → vídeo para gif
+/quote → quote aleatória
+/merece → frase motivacional
 
 🌤 Clima
 /clima cidade → clima da cidade
 
 🧠 IA
 /ai → resposta estilo IA
-/quote → citação motivacional
-/8ball pergunta → bola 8 mágica
-/dice → joga dado
-/calc expressão → calculadora rápida
+
+🎲 Diversão rápida
+/8ball → bola 8
+/dice → jogar dado
+/calc → calculadora
 
 🖼 Figurinhas
-envie imagem → gera figurinha
-/envgif → gera figurinha GIF animada
+envie imagem ou vídeo
 
 😂 Diversão
-/joke → piada texto
-/fact → fato curioso
-/merece → fato/quote
+/joke → piada
+/jokeimg → piada em imagem
+/fact → fato aleatório
+
 ╰━━━━━━━━━━━━━━━━━━━━╯
+Versão: {BOT_VERSION}
 """
     kaori.send_message(msg.chat.id, texto)
 
@@ -139,7 +148,7 @@ def ping(msg):
     kaori.send_message(msg.chat.id, f"🌻 Pong! {elapsed} ms")
 
 # -------------------------
-# GOOGLE
+# /GOOGLE
 # -------------------------
 @kaori.message_handler(commands=['google'])
 def google(msg):
@@ -151,10 +160,13 @@ def google(msg):
     kaori.send_message(msg.chat.id, f"🔎 {query}\n{link}")
 
 # -------------------------
-# PIXABAY
+# /IMG
 # -------------------------
 @kaori.message_handler(commands=['img'])
 def img(msg):
+    if not PIXABAY_KEY:
+        kaori.send_message(msg.chat.id, "❌ API key do Pixabay não configurada")
+        return
     query = msg.text.replace("/img", "").strip()
     if not query:
         kaori.reply_to(msg, "Use:\n/img termo")
@@ -164,139 +176,161 @@ def img(msg):
     if r.get("hits"):
         kaori.send_photo(msg.chat.id, r["hits"][0]["largeImageURL"])
     else:
-        kaori.send_message(msg.chat.id, "❌ Nenhuma imagem encontrada.")
+        kaori.send_message(msg.chat.id, "❌ Nenhuma imagem encontrada")
 
 # -------------------------
-# WIKI
+# /GIF
 # -------------------------
-@kaori.message_handler(commands=['wiki'])
-def wiki(msg):
-    query = msg.text.replace("/wiki", "").strip()
-    if not query:
-        kaori.reply_to(msg, "Use:\n/wiki termo")
+@kaori.message_handler(commands=['gif'])
+def gif(msg):
+    if not GIPHY_KEY:
+        kaori.send_message(msg.chat.id, "❌ API key do Giphy não configurada")
         return
+    query = msg.text.replace("/gif", "").strip()
+    if not query:
+        kaori.reply_to(msg, "Use:\n/gif termo")
+        return
+    url = f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_KEY}&q={query}&limit=1&rating=g"
+    r = requests.get(url).json()
     try:
-        summary = wikipedia.summary(query, sentences=3)
-        kaori.send_message(msg.chat.id, f"🌻 {summary}")
+        gif_url = r["data"][0]["images"]["original"]["url"]
+        kaori.send_animation(msg.chat.id, gif_url)
     except:
-        kaori.send_message(msg.chat.id, "❌ Não encontrei")
+        kaori.send_message(msg.chat.id, "❌ Nenhum gif encontrado")
 
 # -------------------------
-# MEME
+# /ANIME
+# -------------------------
+@kaori.message_handler(commands=['anime'])
+def anime(msg):
+    url = "https://api.waifu.pics/sfw/waifu"
+    try:
+        r = requests.get(url).json()
+        kaori.send_photo(msg.chat.id, r["url"])
+    except:
+        kaori.send_message(msg.chat.id, "❌ Não consegui pegar imagem de anime")
+
+# -------------------------
+# /MEME
 # -------------------------
 @kaori.message_handler(commands=['meme'])
 def meme(msg):
     try:
         r = requests.get("https://meme-api.com/gimme/ptmemes").json()
-        kaori.send_photo(msg.chat.id, r['url'], caption=r['title'])
+        kaori.send_photo(msg.chat.id, r["url"], caption=r["title"])
     except:
-        kaori.send_message(msg.chat.id, "❌ Não consegui pegar meme.")
+        kaori.send_message(msg.chat.id, "❌ Não consegui pegar meme")
 
 # -------------------------
-# GIF ALEATÓRIO
+# /MERECE
 # -------------------------
-@kaori.message_handler(commands=['gif'])
-def gif(msg):
-    query = msg.text.replace("/gif", "").strip()
+@kaori.message_handler(commands=['merece'])
+def merece(msg):
+    frases = [
+        "Você é incrível! 🌸",
+        "Continue assim, não desista! 💪",
+        "Cada dia é uma nova chance ✨",
+        "Você merece o melhor sempre 💖"
+    ]
+    kaori.send_message(msg.chat.id, random.choice(frases))
+
+# -------------------------
+# /QUOTE
+# -------------------------
+@kaori.message_handler(commands=['quote'])
+def quote(msg):
+    try:
+        r = requests.get("https://api.quotable.io/random").json()
+        kaori.send_message(msg.chat.id, f"💬 {r['content']} — {r['author']}")
+    except:
+        kaori.send_message(msg.chat.id, "❌ Não consegui pegar quote")
+
+# -------------------------
+# /8BALL
+# -------------------------
+@kaori.message_handler(commands=['8ball'])
+def eightball(msg):
+    respostas = ["Sim", "Não", "Talvez", "Com certeza", "Não sei", "Provavelmente"]
+    kaori.send_message(msg.chat.id, random.choice(respostas))
+
+# -------------------------
+# /DICE
+# -------------------------
+@kaori.message_handler(commands=['dice'])
+def dice(msg):
+    kaori.send_message(msg.chat.id, f"🎲 Resultado: {random.randint(1,6)}")
+
+# -------------------------
+# /CALC
+# -------------------------
+@kaori.message_handler(commands=['calc'])
+def calc(msg):
+    query = msg.text.replace("/calc", "").strip()
+    try:
+        result = eval(query)
+        kaori.send_message(msg.chat.id, f"🧮 Resultado: {result}")
+    except:
+        kaori.send_message(msg.chat.id, "❌ Expressão inválida")
+
+# -------------------------
+# /AI
+# -------------------------
+@kaori.message_handler(commands=['ai'])
+def ai(msg):
+    if not OPENAI_KEY:
+        kaori.send_message(msg.chat.id, "❌ API key do OpenAI não configurada")
+        return
+    query = msg.text.replace("/ai", "").strip()
     if not query:
-        kaori.reply_to(msg, "Use:\n/gif termo")
+        kaori.reply_to(msg, "Use:\n/ai pergunta")
         return
     try:
-        r = requests.get(f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_KEY}&q={query}&limit=10").json()
-        if r.get("data"):
-            url = random.choice(r["data"])["images"]["original"]["url"]
-            kaori.send_animation(msg.chat.id, url)
-        else:
-            kaori.send_message(msg.chat.id, "❌ Nenhum gif encontrado.")
+        import openai
+        openai.api_key = OPENAI_KEY
+        response = openai.Completion.create(
+            model="text-davinci-003",
+            prompt=query,
+            temperature=0.7,
+            max_tokens=200
+        )
+        kaori.send_message(msg.chat.id, response["choices"][0]["text"].strip())
     except:
-        kaori.send_message(msg.chat.id, "❌ Erro ao buscar gif.")
+        kaori.send_message(msg.chat.id, "❌ Erro ao processar IA")
 
 # -------------------------
-# FIGURINHA e FIG GIF
+# /ENVGIF / STICKER
 # -------------------------
-@kaori.message_handler(content_types=['photo'])
+@kaori.message_handler(content_types=['photo','video'])
 def sticker(msg):
     try:
         os.makedirs("temp", exist_ok=True)
-        file_info = kaori.get_file(msg.photo[-1].file_id)
-        downloaded = kaori.download_file(file_info.file_path)
-        with open("temp/img.png", "wb") as f:
-            f.write(downloaded)
-
-        img = Image.open("temp/img.png").convert("RGBA")
-        img.thumbnail((512,512))
-        img.save("temp/sticker.webp", "WEBP")
-        with open("temp/sticker.webp", "rb") as s:
-            kaori.send_sticker(msg.chat.id, s)
-    except Exception as e:
-        kaori.send_message(msg.chat.id, f"Erro:\n{e}")
-
-@kaori.message_handler(commands=['envgif'])
-def envgif(msg):
-    try:
-        os.makedirs("temp", exist_ok=True)
-        if msg.reply_to_message and msg.reply_to_message.photo:
-            file_id = msg.reply_to_message.photo[-1].file_id
+        if msg.content_type == "photo":
+            file_info = kaori.get_file(msg.photo[-1].file_id)
         else:
-            kaori.reply_to(msg, "Responda a imagem que quer transformar em GIF.")
-            return
-        file_info = kaori.get_file(file_id)
+            file_info = kaori.get_file(msg.video.file_id)
         downloaded = kaori.download_file(file_info.file_path)
-        with open("temp/img.png", "wb") as f:
+        ext = "png" if msg.content_type=="photo" else "mp4"
+        with open(f"temp/input.{ext}","wb") as f:
             f.write(downloaded)
-        img = Image.open("temp/img.png")
-        img.thumbnail((512,512))
-        img.save("temp/sticker.gif", save_all=True, append_images=[img], loop=0, duration=200)
-        with open("temp/sticker.gif", "rb") as s:
-            kaori.send_document(msg.chat.id, s)
+        if ext=="png":
+            img = Image.open("temp/input.png").convert("RGBA")
+            img.thumbnail((512,512))
+            img.save("temp/sticker.webp","WEBP")
+            with open("temp/sticker.webp","rb") as s:
+                kaori.send_sticker(msg.chat.id,s)
+        else:
+            # converter vídeo em gif (envgif)
+            from moviepy.editor import VideoFileClip
+            clip = VideoFileClip("temp/input.mp4")
+            clip = clip.resize(width=512)
+            clip.write_gif("temp/sticker.gif")
+            with open("temp/sticker.gif","rb") as s:
+                kaori.send_animation(msg.chat.id,s)
     except Exception as e:
-        kaori.send_message(msg.chat.id, f"Erro:\n{e}")
-
-# -------------------------
-# /PLAY corrigido
-# -------------------------
-@kaori.message_handler(commands=['play'])
-def play(msg):
-    query = msg.text.replace("/play", "").strip()
-    if not query:
-        kaori.reply_to(msg, "🌻 Use:\n/play link ou nome da música")
-        return
-    status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
-    try:
-        os.makedirs("music", exist_ok=True)
-        ydl_opts = {
-            "format": "bestaudio/best",
-            "outtmpl": "music/%(title)s.%(ext)s",
-            "quiet": True,
-            "noplaylist": True,
-            "default_search": "ytsearch",
-            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}],
-            "extractor_args": {"youtube": {"player_client": ["android"]}},
-            "http_headers": {"User-Agent": "com.google.android.youtube/17.31.35 (Linux; U; Android 11)"},
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(query, download=True)
-            filename = ydl.prepare_filename(info)
-        if not os.path.exists(filename):
-            for ext in ["mp3","webm","m4a","opus"]:
-                test = f"music/{info['title']}.{ext}"
-                if os.path.exists(test):
-                    filename = test
-                    break
-        title = info.get("title")
-        thumb = info.get("thumbnail")
-        duration = info.get("duration")
-        tempo = f"{duration//60}:{duration%60:02d}" if duration else "desconhecido"
-        if thumb:
-            kaori.send_photo(msg.chat.id, thumb, caption=f"🎵 {title}\n⏱ {tempo}")
-        with open(filename, "rb") as audio:
-            kaori.send_audio(msg.chat.id, audio, title=title)
-        kaori.edit_message_text(f"🎵 Tocando: {title}", msg.chat.id, status.message_id)
-    except Exception as e:
-        kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
+        kaori.send_message(msg.chat.id,f"Erro:\n{e}")
 
 # -------------------------
 # RUN
 # -------------------------
-print("🌻 Kaori iniciada")
+print(f"🌻 Kaori {BOT_VERSION} iniciada")
 kaori.infinity_polling()
