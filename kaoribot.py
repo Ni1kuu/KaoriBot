@@ -206,4 +206,152 @@ def kiss(m):
 
 @bot.message_handler(commands=['meme'])
 def meme(m):
-    r = requests.get("https://meme-api
+    r = requests.get("https://meme-api.com/gimme").json()
+    bot.send_photo(m.chat.id,r["url"])
+
+@bot.message_handler(commands=['neko'])
+def neko(m):
+    r = requests.get("https://api.waifu.pics/sfw/neko").json()
+    bot.send_photo(m.chat.id,r["url"])
+
+# ======================
+# ANAGRAMA
+# ======================
+@bot.message_handler(commands=['anagrama'])
+def anagrama(m):
+    palavra = random.choice(palavras)
+    misturada = ''.join(random.sample(palavra,len(palavra)))
+    jogo[m.chat.id] = palavra
+    bot.send_message(m.chat.id,f"💛 Adivinhe: {misturada}")
+
+# ======================
+# RESPOSTA ANAGRAMA E ANTILINK
+# ======================
+@bot.message_handler(func=lambda m: True)
+def resposta(m):
+    # Anagrama
+    if m.chat.id in jogo:
+        if m.text.lower() == jogo[m.chat.id]:
+            username = getattr(m.from_user,"username",m.from_user.first_name)
+            bot.reply_to(m,f"💛 @{username} acertou!")
+            del jogo[m.chat.id]
+            return
+    # Antilink
+    if m.chat.id in antilink and antilink[m.chat.id]:
+        if m.text and ("http" in m.text or "t.me" in m.text):
+            try:
+                bot.delete_message(m.chat.id,m.message_id)
+                bot.ban_chat_member(m.chat.id,m.from_user.id)
+                bot.send_message(m.chat.id,"🚫 Link proibido! Usuário banido.")
+            except:
+                pass
+
+# ======================
+# UTILIDADES
+# ======================
+@bot.message_handler(commands=['roll'])
+def roll(m):
+    bot.reply_to(m,f"🎲 {random.randint(1,6)}")
+
+@bot.message_handler(commands=['coin'])
+def coin(m):
+    bot.reply_to(m,random.choice(["Cara","Coroa"]))
+
+@bot.message_handler(commands=['8ball'])
+def ball(m):
+    respostas = ["Sim","Não","Talvez","Provavelmente"]
+    bot.reply_to(m,random.choice(respostas))
+
+@bot.message_handler(commands=['quote'])
+def quote(m):
+    frases = [
+        "🌻 Continue tentando",
+        "💛 Nunca desista",
+        "✨ Um passo por vez",
+        "🔥 Você consegue"
+    ]
+    bot.reply_to(m,random.choice(frases))
+
+@bot.message_handler(commands=['search'])
+def search(m):
+    try:
+        termo = m.text.split(" ",1)[1]
+        link = termo.replace(" ","+")
+        bot.send_message(m.chat.id,f"https://www.google.com/search?q={link}")
+    except:
+        bot.reply_to(m,"Use /search <termo>")
+
+@bot.message_handler(commands=['avatar'])
+def avatar(m):
+    photos = bot.get_user_profile_photos(m.from_user.id)
+    if photos.total_count > 0:
+        bot.send_photo(m.chat.id,photos.photos[0][0].file_id)
+
+# ======================
+# PIN / UNPIN
+# ======================
+@bot.message_handler(commands=['pin'])
+def pin(m):
+    if m.reply_to_message:
+        bot.pin_chat_message(m.chat.id,m.reply_to_message.message_id,disable_notification=True)
+        bot.reply_to(m,"📌 Mensagem fixada!")
+    elif m.chat.type == "private":
+        bot.reply_to(m,"📌 Responda a uma mensagem para fixar!")
+        
+@bot.message_handler(commands=['unpin'])
+def unpin(m):
+    if m.reply_to_message:
+        bot.unpin_chat_message(m.chat.id,m.reply_to_message.message_id)
+        bot.reply_to(m,"📌 Mensagem desfixada!")
+    elif m.chat.type == "private":
+        bot.unpin_all_chat_messages(m.chat.id)
+        bot.reply_to(m,"📌 Todas as mensagens desfixadas!")
+
+# ======================
+# BAN
+# ======================
+@bot.message_handler(commands=['ban'])
+def ban(m):
+    if m.reply_to_message:
+        uid = m.reply_to_message.from_user.id
+        bot.ban_chat_member(m.chat.id,uid)
+
+# ======================
+# ANTILINK
+# ======================
+@bot.message_handler(commands=['antilink'])
+def anti(m):
+    args = m.text.split()
+    if len(args)<2: return
+    if args[1].lower() == "on":
+        antilink[m.chat.id] = True
+        bot.reply_to(m,"🚫 Antilink ativado")
+    if args[1].lower() == "off":
+        antilink[m.chat.id] = False
+        bot.reply_to(m,"✅ Antilink desativado")
+
+# ======================
+# CLEAR / CLEARALL
+# ======================
+@bot.message_handler(commands=['clear'])
+def clear(m):
+    try:
+        quantidade = int(m.text.split()[1])
+        for i in range(quantidade):
+            bot.delete_message(m.chat.id, m.message_id-i)
+    except:
+        bot.reply_to(m,"Use /clear <número>")
+
+@bot.message_handler(commands=['clearall'])
+def clearall(m):
+    try:
+        for i in range(100):
+            bot.delete_message(m.chat.id, m.message_id-i)
+    except:
+        pass
+
+# ======================
+# INICIAR BOT
+# ======================
+print("🌻 KaoriBot v4.2 iniciada")
+bot.infinity_polling()
