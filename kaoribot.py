@@ -273,7 +273,7 @@ def sticker(msg):
 # -------------------------
 @kaori.message_handler(commands=['play'])
 def play(msg):
-    import os, shlex, subprocess, yt_dlp, time
+    import os, yt_dlp, time
 
     query = msg.text.replace("/play", "").strip()
     if not query:
@@ -283,7 +283,6 @@ def play(msg):
     status = kaori.send_message(msg.chat.id, f"🎧 Procurando: {query}")
 
     try:
-        # garante que a pasta exista
         os.makedirs("music", exist_ok=True)
 
         # opções do yt-dlp
@@ -306,11 +305,12 @@ def play(msg):
             }]
         }
 
+        # baixa a música
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(query, download=True)
             filename = ydl.prepare_filename(info)
 
-        # verifica se o arquivo existe, corrige audio.NA
+        # corrige audio.NA caso necessário
         if not os.path.exists(filename):
             for ext in ["mp3","webm","m4a","opus"]:
                 test = f"music/{info['title']}.{ext}"
@@ -320,21 +320,29 @@ def play(msg):
 
         title = info.get("title")
         thumb = info.get("thumbnail")
-        duration = info.get("duration")
+        duration = info.get("duration")  # em segundos
 
-duration = info.get("duration")  # em segundos
-minutos = duration // 60
-segundos = duration % 60
+        # calcula minutos e segundos de forma segura
+        if duration:
+            minutos = duration // 60
+            segundos = duration % 60
+            tempo = f"{minutos}:{segundos:02d}"
+        else:
+            tempo = "desconhecido"
 
-# envia thumb como foto
-if thumb:
-    kaori.send_photo(msg.chat.id, thumb, caption=f"🎵 {title}\n⏱ {minutos}:{segundos:02d}"
+        # envia thumb como foto
+        if thumb:
+            kaori.send_photo(msg.chat.id, thumb, caption=f"🎵 {title}\n⏱ {tempo}")
 
-# envia áudio
-with open(filename, "rb") as audio:
-    kaori.send_audio(msg.chat.id, audio, title=title)
+        # envia áudio
+        with open(filename, "rb") as audio:
+            kaori.send_audio(msg.chat.id, audio, title=title)
 
-kaori.edit_message_text(f"🎵 Tocando: {title}", msg.chat.id, status.message_id)
+        # atualiza mensagem de status
+        kaori.edit_message_text(f"🎵 Tocando: {title}", msg.chat.id, status.message_id)
+
+    except Exception as e:
+        kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
 
 # -------------------------
 # RUN
