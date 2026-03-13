@@ -329,18 +329,15 @@ if duration:
 else:
     tempo = "desconhecido"
 
-        # envia thumb como foto
-        if thumb:
-            kaori.send_photo(msg.chat.id, thumb, caption=f"🎵 {title}\n⏱ {tempo}")
+# envia thumb como foto
+if thumb:
+    kaori.send_photo(msg.chat.id, thumb, caption=f"🎵 {title}\n⏱ {tempo}")
 
-        # envia áudio
-        with open(filename, "rb") as audio:
-            kaori.send_audio(msg.chat.id, audio, title=title)
+# envia áudio
+with open(filename, "rb") as audio:
+    kaori.send_audio(msg.chat.id, audio, title=title)
 
-        kaori.edit_message_text(f"🎵 Tocando: {title}", msg.chat.id, status.message_id)
-
-    except Exception as e:
-        kaori.edit_message_text(f"⚠️ Erro ao baixar música:\n{e}", msg.chat.id, status.message_id)
+kaori.edit_message_text(f"🎵 Tocando: {title}", msg.chat.id, status.message_id)
 
 # -------------------------
 # RUN
