@@ -320,13 +320,18 @@ def play(msg):
 
         title = info.get("title")
         thumb = info.get("thumbnail")
-        duration = info.get("duration")  # em segundos
-        minutos = duration // 60
-        segundos = duration % 60
+        duration = info.get("duration")
+
+if duration:
+    minutos = duration // 60
+    segundos = duration % 60
+    tempo = f"{minutos}:{segundos:02d}"
+else:
+    tempo = "desconhecido"
 
         # envia thumb como foto
         if thumb:
-            kaori.send_photo(msg.chat.id, thumb, caption=f"🎵 {title}\n⏱ {minutos}:{segundos:02d}")
+            kaori.send_photo(msg.chat.id, thumb, caption=f"🎵 {title}\n⏱ {tempo}")
 
         # envia áudio
         with open(filename, "rb") as audio:
