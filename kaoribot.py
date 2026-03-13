@@ -13,7 +13,7 @@ jogos_ativos = {}       # Para /anagrama
 antilink_ativo = {}     # Para /antilink
 
 # -----------------------------
-# Menu
+# Menu completo
 # -----------------------------
 @bot.message_handler(commands=['start','menu'])
 def start_menu(message):
@@ -29,11 +29,14 @@ def start_menu(message):
         "/pin – Fixar a última mensagem do chat\n"
         "/unpin – Desafixar mensagens fixadas (resposta ou todas)\n\n"
         "💛 🌸 DIVERSÃO:\n"
-        "/waifu – Puxar waifu aleatória\n"
-        "/hug – Enviar abraço em GIF de anime\n"
-        "/kiss – Enviar beijo em GIF de anime\n"
-        "/meme – Puxar meme aleatório em português\n"
-        "/neko – Puxar gato anime aleatório\n"
+        "/waifu – Puxar waifu aleatória (safe)\n"
+        "/waifu+18 – Waifu +18 (somente privado)\n"
+        "/gif – GIF de anime (safe)\n"
+        "/gif+18 – GIF de anime +18 (somente privado)\n"
+        "/hug – Abraço anime (safe)\n"
+        "/kiss – Beijo anime (safe)\n"
+        "/meme – Meme aleatório em português\n"
+        "/neko – Gato anime aleatório\n"
         "/8ball – Bola 8 mágica\n"
         "/roll – Rolar dado 🎲\n"
         "/quote – Frase motivacional 🌻\n"
@@ -72,30 +75,46 @@ def verificar_resposta(message):
         jogos_ativos.pop(chat_id)
 
 # -----------------------------
-# /waifu
+# /waifu e /waifu+18
 # -----------------------------
-@bot.message_handler(commands=['waifu'])
+@bot.message_handler(commands=['waifu','waifu+18'])
 def waifu(message):
+    cmd = message.text.split()[0]
+    if cmd == 'waifu+18' and message.chat.type != 'private':
+        bot.reply_to(message, "💛 Comando +18 só funciona em chat privado!")
+        return
+    tipo = 'nsfw' if cmd == 'waifu+18' else 'sfw'
     try:
-        # Conteúdo SFW (safe)
-        resp = requests.get("https://api.waifu.pics/sfw/waifu").json()
+        resp = requests.get(f"https://api.waifu.pics/{tipo}/waifu").json()
         bot.send_photo(message.chat.id, resp['url'])
     except:
         bot.reply_to(message, "💛 Não consegui pegar uma waifu agora 😢")
 
 # -----------------------------
-# /hug e /kiss (anime +18 opcional)
+# /gif e /gif+18
+# -----------------------------
+@bot.message_handler(commands=['gif','gif+18'])
+def anime_gif(message):
+    cmd = message.text.split()[0]
+    if cmd == 'gif+18' and message.chat.type != 'private':
+        bot.reply_to(message, "💛 Comando +18 só funciona em chat privado!")
+        return
+    tipo = 'nsfw' if cmd == 'gif+18' else 'sfw'
+    try:
+        resp = requests.get(f"https://api.waifu.pics/{tipo}/hug").json()  # Pode usar hug/kiss aleatório
+        bot.send_animation(message.chat.id, resp['url'])
+    except:
+        bot.reply_to(message, f"💛 Não consegui enviar {cmd} agora 😢")
+
+# -----------------------------
+# /hug e /kiss (safe)
 # -----------------------------
 @bot.message_handler(commands=['hug','kiss'])
-def anime_gif(message):
-    cmd = message.text.split()[0][1:]  # 'hug' ou 'kiss'
+def hug_kiss(message):
+    cmd = message.text.split()[0]
+    tipo = 'sfw'
     try:
-        # Para conteúdo adulto, use 'nsfw' se chat for privado
-        tipo = 'nsfw' if message.chat.type == 'private' else 'sfw'
-        if cmd == 'hug':
-            resp = requests.get(f"https://api.waifu.pics/{tipo}/hug").json()
-        else:
-            resp = requests.get(f"https://api.waifu.pics/{tipo}/kiss").json()
+        resp = requests.get(f"https://api.waifu.pics/{tipo}/{cmd}").json()
         bot.send_animation(message.chat.id, resp['url'])
     except:
         bot.reply_to(message, f"💛 Não consegui enviar {cmd} agora 😢")
@@ -148,7 +167,6 @@ def verificar_links(message):
     chat_id = message.chat.id
     user_id = message.from_user.id
     texto = message.text or ""
-    
     if antilink_ativo.get(chat_id, False):
         if 'http://' in texto.lower() or 'https://' in texto.lower() or 'www.' in texto.lower():
             try:
