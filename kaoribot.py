@@ -19,23 +19,22 @@ bot = telebot.TeleBot(TOKEN)
 def start(message):
     bot.reply_to(message, "💛 Olá! Eu sou a KaoriBot 💛\nUse /menu para ver todos os comandos.")
 
-# /ping - ping real com animação
+# /ping - animado com latência real
 @bot.message_handler(commands=['ping'])
 def ping(message):
     start = time.time()
     msg = bot.send_message(message.chat.id, "🏓 Pingando 💛🌻")
     
-    # animação contínua com pontos
+    # animação de pontos
     for i in range(6):
-        time.sleep(0.3)  # intervalo entre pontos
-        pontos = '.' * ((i % 3) + 1)  # de 1 a 3 pontos
+        time.sleep(0.3)
+        pontos = '.' * ((i % 3) + 1)
         bot.edit_message_text(f"🏓 Pingando{pontos} 💛🌻", message.chat.id, msg.message_id)
     
-    # tempo real da ida e volta da API
     latency = int((time.time() - start) * 1000)
     bot.edit_message_text(f"🏓 Pong! Latência real: {latency}ms 💛🌻", message.chat.id, msg.message_id)
 
-# /menu - menu estilizado em blocos
+# /menu - menu estilizado atualizado
 @bot.message_handler(commands=['menu'])
 def menu(message):
     menu_text = (
