@@ -192,37 +192,39 @@ def gifnsfw(m):
         bot.reply_to(m,"💛 Não encontrei GIFs NSFW!")
 
 # ======================
-# HUG / KISS / NEKO / MEME
+# HUG / KISS (SFW e NSFW)
 # ======================
-@bot.message_handler(commands=['hug'])
+@bot.message_handler(commands=['hug','hugsfw','hugnsfw'])
 def hug(m):
-    r = requests.get("https://api.waifu.pics/sfw/hug").json()
-    bot.send_animation(m.chat.id,r["url"])
+    chat_type = m.chat.type
+    if m.text.startswith("/hugnsfw"):
+        if chat_type != "private":
+            bot.reply_to(m,"🚫 NSFW só no chat privado!")
+            return
+        url_api = "https://api.waifu.pics/nsfw/hug"
+    else:
+        url_api = "https://api.waifu.pics/sfw/hug"
+    try:
+        r = requests.get(url_api).json()
+        bot.send_animation(m.chat.id,r["url"])
+    except:
+        bot.reply_to(m,"💛 Não consegui enviar o hug!")
 
-@bot.message_handler(commands=['kiss'])
+@bot.message_handler(commands=['kiss','kisssfw','kissnsfw'])
 def kiss(m):
-    r = requests.get("https://api.waifu.pics/sfw/kiss").json()
-    bot.send_animation(m.chat.id,r["url"])
-
-@bot.message_handler(commands=['meme'])
-def meme(m):
-    r = requests.get("https://meme-api.com/gimme").json()
-    bot.send_photo(m.chat.id,r["url"])
-
-@bot.message_handler(commands=['neko'])
-def neko(m):
-    r = requests.get("https://api.waifu.pics/sfw/neko").json()
-    bot.send_photo(m.chat.id,r["url"])
-
-# ======================
-# ANAGRAMA
-# ======================
-@bot.message_handler(commands=['anagrama'])
-def anagrama(m):
-    palavra = random.choice(palavras)
-    misturada = ''.join(random.sample(palavra,len(palavra)))
-    jogo[m.chat.id] = palavra
-    bot.send_message(m.chat.id,f"💛 Adivinhe: {misturada}")
+    chat_type = m.chat.type
+    if m.text.startswith("/kissnsfw"):
+        if chat_type != "private":
+            bot.reply_to(m,"🚫 NSFW só no chat privado!")
+            return
+        url_api = "https://api.waifu.pics/nsfw/kiss"
+    else:
+        url_api = "https://api.waifu.pics/sfw/kiss"
+    try:
+        r = requests.get(url_api).json()
+        bot.send_animation(m.chat.id,r["url"])
+    except:
+        bot.reply_to(m,"💛 Não consegui enviar o kiss!")
 
 # ======================
 # RESPOSTA ANAGRAMA E ANTILINK
