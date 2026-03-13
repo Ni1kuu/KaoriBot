@@ -26,18 +26,18 @@ def start(message):
 # /ping - ping rápido 
 @bot.message_handler(commands=['ping'])
 def ping(message):
-    # Envia a mensagem inicial
+    start = time.time()  # começa a medir o tempo real
+    # envia a mensagem inicial
     msg = bot.send_message(message.chat.id, "🏓 Pingando")
     
-    # Simula animação com pontos
+    # animação simples
     for i in range(3):
-        time.sleep(0.5)  # espera 0.5s
+        time.sleep(0.3)  # 0.2s entre cada ponto
         bot.edit_message_text(f"🏓 Pingando{'.'*(i+1)}", message.chat.id, msg.message_id)
     
-    # Calcula tempo real em ms desde o envio da primeira mensagem
-    latency = int((time.time() - message.date) * 1000)
+    # calcula tempo total de ida e volta da API
+    latency = int((time.time() - start) * 1000)
     
-    # Mostra o resultado
     bot.edit_message_text(f"🏓 Pong! Latência real: {latency}ms", message.chat.id, msg.message_id)
 
 # /menu - menu estilizado com blocos
