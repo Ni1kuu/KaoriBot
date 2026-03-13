@@ -273,54 +273,30 @@ def ai(msg):
         kaori.send_message(msg.chat.id, "❌ Erro ao processar IA")
 
 # -------------------------
-# /FIG - responder imagem ou GIF
+# /FIG - responder imagem
 # -------------------------
 @kaori.message_handler(commands=['fig'])
 def fig(msg):
     try:
-        if not msg.reply_to_message:
-            kaori.send_message(msg.chat.id, "⚠️ Responda a uma imagem ou GIF com /fig")
+        if not msg.reply_to_message or msg.reply_to_message.content_type != "photo":
+            kaori.send_message(msg.chat.id, "⚠️ Responda a uma imagem com /fig para transformá-la em figurinha")
             return
 
-        replied = msg.reply_to_message
         os.makedirs("temp", exist_ok=True)
-
-        # Definir arquivo e extensão
-        if replied.content_type == "photo":
-            file_info = kaori.get_file(replied.photo[-1].file_id)
-            ext = "png"
-        elif replied.content_type == "animation":
-            file_info = kaori.get_file(replied.animation.file_id)
-            ext = "gif"
-        else:
-            kaori.send_message(msg.chat.id, "❌ Apenas imagens ou GIFs podem virar figurinha")
-            return
-
-        input_path = f"temp/input.{ext}"
+        file_info = kaori.get_file(msg.reply_to_message.photo[-1].file_id)
         downloaded = kaori.download_file(file_info.file_path)
+
+        input_path = "temp/input.png"
         with open(input_path, "wb") as f:
             f.write(downloaded)
 
-        if ext == "png":
-            # Imagem estática
-            img = Image.open(input_path).convert("RGBA")
-            img.thumbnail((512, 512))
-            img.save("temp/sticker.webp", "WEBP")
-            with open("temp/sticker.webp", "rb") as s:
-                kaori.send_sticker(msg.chat.id, s)
-        else:
-            # GIF animado → WEBP animado
-            from moviepy.editor import VideoFileClip
-            clip = VideoFileClip(input_path)
-            clip = clip.resize(height=512)  # tamanho máximo 512px
-            clip.write_gif("temp/temp.gif")  # cria GIF temporário
-            clip.write_videofile("temp/temp.mp4", fps=30, codec="libvpx")  # opcional para checar frames
-            # Agora convertemos para webp animado usando Pillow + imageio
-            import imageio
-            frames = imageio.mimread("temp/temp.gif")
-            imageio.mimsave("temp/sticker.webp", frames, format='WEBP', duration=clip.duration/len(frames))
-            with open("temp/sticker.webp", "rb") as s:
-                kaori.send_sticker(msg.chat.id, s)
+        from PIL import Image
+        img = Image.open(input_path).convert("RGBA")
+        img.thumbnail((512,512))
+        img.save("temp/sticker.webp","WEBP")
+
+        with open("temp/sticker.webp","rb") as s:
+            kaori.send_sticker(msg.chat.id, s)
 
     except Exception as e:
         kaori.send_message(msg.chat.id, f"❌ Erro ao criar figurinha:\n{e}")
