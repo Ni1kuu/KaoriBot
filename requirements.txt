@@ -5,3 +5,4 @@ yt-dlp
 wikipedia
 openai
 moviepy
+imageio-ffmpeg
