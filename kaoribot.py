@@ -291,7 +291,7 @@ def play(msg):
 
         ydl_opts = {
             "format":"bestaudio",
-            "outtmpl":"music/audio.%(ext)s",
+            "outtmpl": "music/%(title)s.%(ext)s"
             "noplaylist":True,
             "quiet":True,
             "default_search":"ytsearch",
