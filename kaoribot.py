@@ -3,44 +3,52 @@ import telebot
 import requests
 import random
 import time
-import re
+from telebot import types
 
 TOKEN = os.getenv("BOT_TOKEN")
 GIPHY_KEY = os.getenv("GIPHY_KEY")
 
 bot = telebot.TeleBot(TOKEN)
 
+# ======================
+# SISTEMAS
+# ======================
 antilink = {}
 jogo = {}
 colecao_waifus = {}
 waifu_atual = {}
+avisos = {}  # para /warn
 
 palavras = [
-"computador","banana","anime","python","telegram",
-"programador","internet","gato","waifu","desenvolvedor"
+    "computador","banana","anime","python","telegram",
+    "programador","internet","gato","waifu","desenvolvedor"
 ]
 
+# ======================
+# MENU
+# ======================
 MENU = """
 ╭━━ 💛🌻 MENU KAORI 🌻💛 ━━╮
 
-⚙️ SISTEMA
+💛 ⚙️ SISTEMA
 /start
 /ping
 /menu
 
-🎵 MÚSICA
-/play <nome da música>
+💛 📌 FIXAR
+/pin
+/unpin
 
-🌸 WAIFU
-/waifu
-/waifunsfw
-/capturar
-/minhaswaifus
-/rankwaifu
+💛 🌸 WAIFU
+/waifu – Encontrar waifu SFW
+/waifunsfw – Encontrar waifu NSFW (privado)
+/capturar – Capturar waifu
+/minhaswaifus – Ver coleção
+/rankwaifu – Ranking
+/gifnsfw – GIF NSFW anime (privado)
 
-🎮 DIVERSÃO
-/gif
-/gifnsfw
+💛 🎮 DIVERSÃO
+/gif – GIF anime (categoria opcional)
 /hug
 /kiss
 /meme
@@ -51,446 +59,348 @@ MENU = """
 /coin
 /quote
 
-🛠 UTILIDADES
+💛 🛠 UTILIDADES
+/userinfo
+/chatinfo
 /avatar
+/say
 /search
 
-🛡 MODERAÇÃO
+💛 🛡 MODERAÇÃO
 /clear
+/clearall
 /antilink on/off
 /ban
+/warn
+/mute
+/unmute
+
+╰━━━━━━━━━━━━━━━━━━━━╯
 """
 
-# START
+# ======================
+# START / MENU / PING
+# ======================
 @bot.message_handler(commands=['start'])
 def start(m):
     bot.reply_to(m,"💛 KaoriBot online!\nUse /menu")
 
-# MENU
 @bot.message_handler(commands=['menu'])
 def menu(m):
     bot.send_message(m.chat.id, MENU)
 
-# PING
 @bot.message_handler(commands=['ping'])
 def ping(m):
-    start = time.time()
+    start_time = time.time()
     msg = bot.reply_to(m,"🏓 Pingando...")
-    delay = int((time.time() - start)*1000)
-    bot.edit_message_text(f"🏓 Pong {delay} ms",m.chat.id,msg.message_id)
+    elapsed = int((time.time() - start_time) * 1000)
+    bot.edit_message_text(f"🏓 Pong! {elapsed} ms", m.chat.id, msg.message_id)
 
 # ======================
-# PIN
+# WAIFU SFW / NSFW
 # ======================
-@bot.message_handler(commands=['pin'])
-def pin(m):
-
-    if not m.reply_to_message:
-        bot.reply_to(m,"📌 Responda a uma mensagem para fixar.")
-        return
-
-    try:
-
-        bot.pin_chat_message(
-            chat_id=m.chat.id,
-            message_id=m.reply_to_message.message_id,
-            disable_notification=True
-        )
-
-        bot.reply_to(m,"📌 Mensagem fixada!")
-
-    except Exception as e:
-
-        print("Erro pin:", e)
-
-        bot.reply_to(m,"❌ Não consegui fixar a mensagem.")
-
-# ======================
-# UNPIN
-# ======================
-@bot.message_handler(commands=['unpin'])
-def unpin(m):
-
-    try:
-
-        if m.reply_to_message:
-
-            bot.unpin_chat_message(
-                chat_id=m.chat.id,
-                message_id=m.reply_to_message.message_id
-            )
-
-            bot.reply_to(m,"📌 Mensagem desfixada!")
-
-        else:
-
-            bot.unpin_all_chat_messages(m.chat.id)
-
-            bot.reply_to(m,"📌 Todas as mensagens foram desfixadas!")
-
-    except Exception as e:
-
-        print("Erro unpin:", e)
-
-        bot.reply_to(m,"❌ Não consegui desfixar.")
-
-# PLAY
-@bot.message_handler(commands=['play'])
-def play(m):
-
-    args = m.text.split(" ",1)
-
-    if len(args) < 2:
-        bot.reply_to(m,"🎵 Use:\n/play nome da música")
-        return
-
-    query = args[1].replace(" ","+")
-
-    url = f"https://www.youtube.com/results?search_query={query}"
-
-    html = requests.get(url).text
-
-    video_ids = re.findall(r"watch\?v=(\S{11})", html)
-
-    if not video_ids:
-        bot.reply_to(m,"💛 Não encontrei essa música!")
-        return
-
-    link = f"https://www.youtube.com/watch?v={video_ids[0]}"
-
-    bot.send_message(m.chat.id,f"🎵 Resultado:\n{link}")
-
-# WAIFU
 @bot.message_handler(commands=['waifu','waifunsfw'])
 def waifu(m):
-
-    if m.text.startswith("/waifunsfw") and m.chat.type != "private":
-        bot.reply_to(m,"🚫 NSFW só no privado")
-        return
-
-    url = "https://api.waifu.pics/sfw/waifu"
-
+    chat_type = m.chat.type
     if m.text.startswith("/waifunsfw"):
-        url = "https://api.waifu.pics/nsfw/waifu"
-
-    data = requests.get(url).json()
-
-    img = data["url"]
-
-    waifu_atual[m.chat.id] = img
-
-    bot.send_photo(m.chat.id,img,caption="💛 Uma waifu apareceu!\nUse /capturar")
-
-# CAPTURAR
-@bot.message_handler(commands=['capturar'])
-def capturar(m):
-
-    chat = m.chat.id
-    user = m.from_user.id
-
-    if chat not in waifu_atual:
-        bot.reply_to(m,"💛 Nenhuma waifu!")
-        return
-
-    if user not in colecao_waifus:
-        colecao_waifus[user] = []
-
-    colecao_waifus[user].append(waifu_atual[chat])
-
-    bot.reply_to(m,"🌸 Waifu capturada!")
-
-# MINHAS WAIFUS
-@bot.message_handler(commands=['minhaswaifus'])
-def minhas(m):
-
-    user = m.from_user.id
-
-    if user not in colecao_waifus:
-        bot.reply_to(m,"💛 Você não tem waifus")
-        return
-
-    bot.reply_to(m,f"💛 Você possui {len(colecao_waifus[user])} waifus")
-
-# GIF
-@bot.message_handler(commands=['gif'])
-def gif(m):
-
-    termo = "anime"
-
-    args = m.text.split()
-
-    if len(args) > 1:
-        termo += " " + " ".join(args[1:])
-
-    url = f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_KEY}&q={termo}&limit=25"
-
-    r = requests.get(url).json()
-
-    gifs = r["data"]
-
-    if not gifs:
-        bot.reply_to(m,"💛 Não achei gif!")
-        return
-
-    gif = random.choice(gifs)
-
-    bot.send_animation(m.chat.id,gif["images"]["original"]["url"])
-
-# ======================
-# GIF NSFW AVANÇADO
-# ======================
-@bot.message_handler(commands=['gifnsfw'])
-def gifnsfw(m):
-
-    if m.chat.type != "private":
-        bot.reply_to(m,"🚫 Conteúdo NSFW apenas no chat privado.")
-        return
+        if chat_type != "private":
+            bot.reply_to(m,"🚫 NSFW só no privado!")
+            return
+        url_api = "https://api.waifu.pics/nsfw/waifu"
+    else:
+        url_api = "https://api.waifu.pics/sfw/waifu"
 
     try:
+        r = requests.get(url_api).json()
+        img = r["url"]
+        waifu_atual[m.chat.id] = img
+        bot.send_photo(m.chat.id, img, caption="💛 Uma waifu apareceu!\nUse /capturar")
+    except:
+        bot.reply_to(m,"💛 Não consegui pegar a waifu!")
 
-        fontes = [
+@bot.message_handler(commands=['gifnsfw'])
+def gifnsfw(m):
+    if m.chat.type != "private":
+        bot.reply_to(m,"🚫 NSFW só no privado!")
+        return
+    try:
+        url = f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_KEY}&q=nsfw+anime&limit=25&rating=r"
+        r = requests.get(url).json()
+        resultados = r.get("data", [])
+        if not resultados:
+            bot.reply_to(m,"💛 Não consegui buscar GIF NSFW!")
+            return
+        escolhido = random.choice(resultados)
+        link = escolhido["images"]["original"]["url"]
+        bot.send_animation(m.chat.id, link)
+    except:
+        bot.reply_to(m,"💛 Erro ao buscar GIF NSFW!")
 
-            # Waifu.pics
-            ("https://api.waifu.pics/nsfw/waifu","url"),
+@bot.message_handler(commands=['capturar'])
+def capturar(m):
+    chat = m.chat.id
+    user = m.from_user.id
+    if chat not in waifu_atual:
+        bot.reply_to(m,"💛 Não há waifu para capturar!")
+        return
+    img = waifu_atual[chat]
+    if user not in colecao_waifus:
+        colecao_waifus[user] = []
+    colecao_waifus[user].append(img)
+    bot.reply_to(m,"🌸 Waifu capturada!")
 
-            # Nekos.life
-            ("https://nekos.life/api/v2/img/hentai","url"),
-            ("https://nekos.life/api/v2/img/pgif","url")
+@bot.message_handler(commands=['minhaswaifus'])
+def minhas(m):
+    user = m.from_user.id
+    if user not in colecao_waifus:
+        bot.reply_to(m,"💛 Você não tem waifus!")
+        return
+    total = len(colecao_waifus[user])
+    bot.reply_to(m,f"💛 Você possui {total} waifus!")
 
-        ]
+@bot.message_handler(commands=['rankwaifu'])
+def rank(m):
+    ranking = [(user,len(lista)) for user,lista in colecao_waifus.items()]
+    ranking.sort(key=lambda x:x[1],reverse=True)
+    txt = "🏆 Ranking Waifu\n\n"
+    for i,(user,total) in enumerate(ranking[:10],1):
+        txt += f"{i}° — {total} waifus\n"
+    bot.send_message(m.chat.id,txt)
 
-        api, campo = random.choice(fontes)
+# ======================
+# GIF ANIME via Giphy
+# ======================
+@bot.message_handler(commands=['gif'])
+def gif(m):
+    try:
+        args = m.text.split()
+        termo = "anime " + " ".join(args[1:]) if len(args)>1 else "anime"
+        url = f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_KEY}&q={termo}&limit=25&rating=pg"
+        r = requests.get(url).json()
+        resultados = r.get("data", [])
+        if not resultados:
+            bot.reply_to(m,"💛 Não encontrei GIFs!")
+            return
+        escolhido = random.choice(resultados)
+        link = escolhido["images"]["original"]["url"]
+        bot.send_animation(m.chat.id, link)
+    except:
+        bot.reply_to(m,"💛 Erro ao buscar GIF!")
 
-        r = requests.get(api).json()
-
-        gif = r[campo]
-
-        bot.send_animation(
-            m.chat.id,
-            gif,
-            caption="🔞 NSFW"
-        )
-
-    except Exception as e:
-
-        print("Erro gifnsfw:", e)
-
-        bot.reply_to(m,"💛 Não consegui buscar conteúdo NSFW.")
-
-# HUG
+# ======================
+# HUG / KISS / MEME / NEKO / ANAGRAMA
+# ======================
 @bot.message_handler(commands=['hug'])
 def hug(m):
-
     r = requests.get("https://api.waifu.pics/sfw/hug").json()
-
     bot.send_animation(m.chat.id,r["url"])
 
-# KISS
 @bot.message_handler(commands=['kiss'])
 def kiss(m):
-
     r = requests.get("https://api.waifu.pics/sfw/kiss").json()
-
     bot.send_animation(m.chat.id,r["url"])
 
-# MEME
 @bot.message_handler(commands=['meme'])
 def meme(m):
-
     r = requests.get("https://meme-api.com/gimme").json()
-
     bot.send_photo(m.chat.id,r["url"])
 
-# NEKO
 @bot.message_handler(commands=['neko'])
 def neko(m):
-
     r = requests.get("https://api.waifu.pics/sfw/neko").json()
-
     bot.send_photo(m.chat.id,r["url"])
 
-# ANAGRAMA
 @bot.message_handler(commands=['anagrama'])
 def anagrama(m):
-
     palavra = random.choice(palavras)
-
     misturada = ''.join(random.sample(palavra,len(palavra)))
-
     jogo[m.chat.id] = palavra
-
     bot.send_message(m.chat.id,f"💛 Adivinhe: {misturada}")
 
-# RESPOSTA
+# ======================
+# ANAGRAMA RESPOSTA E ANTILINK INTELIGENTE
+# ======================
 @bot.message_handler(func=lambda m: True)
 def resposta(m):
+    if m.chat.id in jogo and m.text.lower() == jogo[m.chat.id]:
+        username = getattr(m.from_user,"username",m.from_user.first_name)
+        bot.reply_to(m,f"💛 @{username} acertou!")
+        del jogo[m.chat.id]
+        return
+    if m.chat.id in antilink and antilink[m.chat.id]:
+        if m.text and ("http" in m.text or "t.me" in m.text):
+            try:
+                bot.delete_message(m.chat.id,m.message_id)
+                bot.ban_chat_member(m.chat.id,m.from_user.id)
+                bot.send_message(m.chat.id,"🚫 Link proibido! Usuário banido.")
+            except: pass
 
-    if m.chat.id in jogo:
-
-        if m.text.lower() == jogo[m.chat.id]:
-
-            bot.reply_to(m,"🎉 Acertou!")
-
-            del jogo[m.chat.id]
-
-# ROLL
+# ======================
+# UTILIDADES
+# ======================
 @bot.message_handler(commands=['roll'])
 def roll(m):
     bot.reply_to(m,f"🎲 {random.randint(1,6)}")
 
-# COIN
 @bot.message_handler(commands=['coin'])
 def coin(m):
     bot.reply_to(m,random.choice(["Cara","Coroa"]))
 
-# 8BALL
 @bot.message_handler(commands=['8ball'])
 def ball(m):
-
     respostas = ["Sim","Não","Talvez","Provavelmente"]
-
     bot.reply_to(m,random.choice(respostas))
 
-# QUOTE
 @bot.message_handler(commands=['quote'])
 def quote(m):
-
-    frases = [
-    "🌻 Continue tentando",
-    "💛 Nunca desista",
-    "✨ Um passo por vez",
-    "🔥 Você consegue"
-    ]
-
+    frases = ["🌻 Continue tentando","💛 Nunca desista","✨ Um passo por vez","🔥 Você consegue"]
     bot.reply_to(m,random.choice(frases))
 
-# SEARCH
 @bot.message_handler(commands=['search'])
 def search(m):
-
     try:
         termo = m.text.split(" ",1)[1]
-        link = termo.replace(" ","+")
-        bot.send_message(m.chat.id,f"https://google.com/search?q={link}")
+        bot.send_message(m.chat.id,f"https://www.google.com/search?q={termo.replace(' ','+')}")
     except:
-        bot.reply_to(m,"Use /search termo")
+        bot.reply_to(m,"Use /search <termo>")
 
-# AVATAR
 @bot.message_handler(commands=['avatar'])
 def avatar(m):
-
-    fotos = bot.get_user_profile_photos(m.from_user.id)
-
-    if fotos.total_count > 0:
-        bot.send_photo(m.chat.id,fotos.photos[0][0].file_id)
+    photos = bot.get_user_profile_photos(m.from_user.id)
+    if photos.total_count>0:
+        bot.send_photo(m.chat.id,photos.photos[0][0].file_id)
 
 # ======================
-# ANTILINK INTELIGENTE
+# PIN / UNPIN (funciona no privado e grupos)
 # ======================
-
-antilink = {}
-
-@bot.message_handler(commands=['antilink'])
-def antilink_cmd(m):
-
-    if m.chat.type == "private":
-        bot.reply_to(m,"❌ Esse comando só funciona em grupos.")
-        return
-
-    args = m.text.split()
-
-    if len(args) < 2:
-        bot.reply_to(m,"Use:\n/antilink on\n/antilink off")
-        return
-
-    if args[1].lower() == "on":
-
-        antilink[m.chat.id] = True
-        bot.reply_to(m,"🛡 Antilink ativado!")
-
-    elif args[1].lower() == "off":
-
-        antilink[m.chat.id] = False
-        bot.reply_to(m,"✅ Antilink desativado!")
-
-# DETECTOR DE LINKS
-@bot.message_handler(func=lambda m: True)
-def detectar_links(m):
-
-    if m.chat.id not in antilink:
-        return
-
-    if not antilink[m.chat.id]:
-        return
-
-    if not m.text:
-        return
-
-    links = [
-        "http://",
-        "https://",
-        "t.me/",
-        "telegram.me",
-        "www."
-    ]
-
-    if any(link in m.text.lower() for link in links):
-
+@bot.message_handler(commands=['pin'])
+def pin(m):
+    if m.reply_to_message:
         try:
+            bot.pin_chat_message(m.chat.id,m.reply_to_message.message_id)
+            bot.reply_to(m,"📌 Mensagem fixada!")
+        except:
+            bot.reply_to(m,"🚫 Não foi possível fixar!")
+    else:
+        bot.reply_to(m,"💛 Responda a mensagem que deseja fixar!")
 
-            member = bot.get_chat_member(m.chat.id, m.from_user.id)
+@bot.message_handler(commands=['unpin'])
+def unpin(m):
+    try:
+        bot.unpin_all_chat_messages(m.chat.id)
+        bot.reply_to(m,"📌 Todas as mensagens foram desfixadas!")
+    except:
+        bot.reply_to(m,"🚫 Não foi possível desfixar!")
 
-            if member.status in ["administrator","creator"]:
-                return
+# ======================
+# BAN
+# ======================
+@bot.message_handler(commands=['ban'])
+def ban(m):
+    if m.reply_to_message:
+        uid = m.reply_to_message.from_user.id
+        bot.ban_chat_member(m.chat.id,uid)
 
-            bot.delete_message(m.chat.id, m.message_id)
+# ======================
+# ANTILINK ON/OFF
+# ======================
+@bot.message_handler(commands=['antilink'])
+def anti(m):
+    args = m.text.split()
+    if len(args)<2: return
+    if args[1].lower()=="on":
+        antilink[m.chat.id] = True
+        bot.reply_to(m,"🚫 Antilink ativado")
+    elif args[1].lower()=="off":
+        antilink[m.chat.id] = False
+        bot.reply_to(m,"✅ Antilink desativado")
 
-            bot.send_message(
-                m.chat.id,
-                f"🚫 @{m.from_user.username or m.from_user.first_name} links não são permitidos!"
-            )
-
-        except Exception as e:
-            print("Erro antilink:", e)
-
-# Sistema de avisos
-avisos = {}  # {chat_id: {user_id: quantidade}}
-
+# ======================
+# WARN / MUTE / UNMUTE COM TEMPO CUSTOMIZÁVEL
+# ======================
 @bot.message_handler(commands=['warn'])
 def warn(m):
-    if m.chat.type == "private":
+    if m.chat.type=="private":
         bot.reply_to(m,"🚫 Comando disponível apenas em grupos!")
         return
-
     if not m.reply_to_message:
-        bot.reply_to(m,"💛 Use /warn respondendo à mensagem do usuário que deseja avisar.")
+        bot.reply_to(m,"💛 Use /warn respondendo à mensagem do usuário.")
         return
-
     user = m.reply_to_message.from_user
     chat = m.chat.id
-
-    # Protege admins
     try:
-        membro = bot.get_chat_member(chat, user.id)
+        membro = bot.get_chat_member(chat,user.id)
         if membro.status in ["administrator","creator"]:
             bot.reply_to(m,"🚫 Não é possível avisar admins!")
             return
+    except: pass
+    if chat not in avisos:
+        avisos[chat] = {}
+    if user.id not in avisos[chat]:
+        avisos[chat][user.id] = 0
+    avisos[chat][user.id] +=1
+    bot.reply_to(m,f"⚠️ {user.first_name} recebeu um aviso! Total: {avisos[chat][user.id]}")
+
+@bot.message_handler(commands=['mute'])
+def mute(m):
+    if m.chat.type=="private":
+        bot.reply_to(m,"🚫 Comando disponível apenas em grupos!")
+        return
+    if not m.reply_to_message:
+        bot.reply_to(m,"💛 Use /mute respondendo à mensagem do usuário.")
+        return
+    args = m.text.split()
+    minutos = 10  # padrão
+    if len(args)>1:
+        try:
+            minutos = int(args[1])
+        except: pass
+    user = m.reply_to_message.from_user
+    chat = m.chat.id
+    try:
+        membro = bot.get_chat_member(chat,user.id)
+        if membro.status in ["administrator","creator"]:
+            bot.reply_to(m,"🚫 Não é possível silenciar admins!")
+            return
+    except: pass
+    bot.restrict_chat_member(chat,user.id,permissions=types.ChatPermissions(can_send_messages=False),until_date=int(time.time())+(minutos*60))
+    bot.reply_to(m,f"🔇 {user.first_name} foi silenciado por {minutos} minutos!")
+
+@bot.message_handler(commands=['unmute'])
+def unmute(m):
+    if m.chat.type=="private":
+        bot.reply_to(m,"🚫 Comando disponível apenas em grupos!")
+        return
+    if not m.reply_to_message:
+        bot.reply_to(m,"💛 Use /unmute respondendo à mensagem do usuário.")
+        return
+    user = m.reply_to_message.from_user
+    chat = m.chat.id
+    bot.restrict_chat_member(chat,user.id,permissions=types.ChatPermissions(can_send_messages=True))
+    bot.reply_to(m,f"🔊 {user.first_name} foi desmutado!")
+
+# ======================
+# CLEAR / CLEARALL
+# ======================
+@bot.message_handler(commands=['clear'])
+def clear(m):
+    try:
+        quantidade = int(m.text.split()[1])
+        for i in range(quantidade):
+            bot.delete_message(m.chat.id, m.message_id-i)
+    except:
+        bot.reply_to(m,"Use /clear <número>")
+
+@bot.message_handler(commands=['clearall'])
+def clearall(m):
+    try:
+        for i in range(100):
+            bot.delete_message(m.chat.id, m.message_id-i)
     except:
         pass
 
-    if chat not in avisos:
-        avisos[chat] = {}
-
-    if user.id not in avisos[chat]:
-        avisos[chat][user.id] = 0
-
-    avisos[chat][user.id] += 1
-    total = avisos[chat][user.id]
-
-    bot.reply_to(m,f"⚠️ {user.first_name} recebeu um aviso! Total: {total}")
-
-
-
-print("🌻 KaoriBot iniciado")
-
+# ======================
+# INICIAR BOT
+# ======================
+print("🌻 KaoriBot completo iniciado com /mute customizável")
 bot.infinity_polling()
