@@ -19,6 +19,7 @@ MENU = """
 
 💛 ⚙️ SISTEMA
 /start
+/ping
 
 💛 📌 FIXAR
 /pin
@@ -45,11 +46,17 @@ MENU = """
 """
 
 # ======================
-# START
+# START / PING
 # ======================
 @bot.message_handler(commands=['start'])
 def start(m):
     bot.send_message(m.chat.id, MENU)
+@bot.message_handler(commands=['ping'])
+def ping(m):
+    start_time = time.time()
+    msg = bot.reply_to(m,"🏓 Pingando...")
+    elapsed = int((time.time() - start_time) * 1000)
+    bot.edit_message_text(f"🏓 Pong! {elapsed} ms", m.chat.id, msg.message_id)
 
 # ======================
 # PIN / UNPIN
@@ -172,11 +179,14 @@ def verifica_link(m):
 # ======================
 @bot.message_handler(commands=['search'])
 def search(m):
-    try:
-        termo = m.text.split(" ",1)[1]
-        bot.send_message(m.chat.id,f"🔎 Resultado: https://www.google.com/search?q={termo.replace(' ','+')}")
-    except:
-        bot.reply_to(m,"💛 Use /search <termo>")
+    args = m.text.split(maxsplit=1)  # Pega tudo depois do comando
+    if len(args) < 2:
+        bot.reply_to(m, "💛 Use /search <termo>")
+        return
+    termo = args[1].strip()  # Remove espaços extras no começo/fim
+    termo_escapado = urllib.parse.quote_plus(termo)  # Escapa espaços e caracteres especiais
+    link = f"https://www.google.com/search?q={termo_escapado}"
+    bot.send_message(m.chat.id, f"🔎 Resultado da pesquisa para '{termo}':\n{link}")
 
 # ======================
 # MEME (em português)
