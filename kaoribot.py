@@ -79,6 +79,61 @@ def ping(m):
     delay = int((time.time() - start)*1000)
     bot.edit_message_text(f"🏓 Pong {delay} ms",m.chat.id,msg.message_id)
 
+# ======================
+# PIN
+# ======================
+@bot.message_handler(commands=['pin'])
+def pin(m):
+
+    if not m.reply_to_message:
+        bot.reply_to(m,"📌 Responda a uma mensagem para fixar.")
+        return
+
+    try:
+
+        bot.pin_chat_message(
+            chat_id=m.chat.id,
+            message_id=m.reply_to_message.message_id,
+            disable_notification=True
+        )
+
+        bot.reply_to(m,"📌 Mensagem fixada!")
+
+    except Exception as e:
+
+        print("Erro pin:", e)
+
+        bot.reply_to(m,"❌ Não consegui fixar a mensagem.")
+
+# ======================
+# UNPIN
+# ======================
+@bot.message_handler(commands=['unpin'])
+def unpin(m):
+
+    try:
+
+        if m.reply_to_message:
+
+            bot.unpin_chat_message(
+                chat_id=m.chat.id,
+                message_id=m.reply_to_message.message_id
+            )
+
+            bot.reply_to(m,"📌 Mensagem desfixada!")
+
+        else:
+
+            bot.unpin_all_chat_messages(m.chat.id)
+
+            bot.reply_to(m,"📌 Todas as mensagens foram desfixadas!")
+
+    except Exception as e:
+
+        print("Erro unpin:", e)
+
+        bot.reply_to(m,"❌ Não consegui desfixar.")
+
 # PLAY
 @bot.message_handler(commands=['play'])
 def play(m):
@@ -182,38 +237,45 @@ def gif(m):
     bot.send_animation(m.chat.id,gif["images"]["original"]["url"])
 
 # ======================
-# GIF NSFW (REAL)
+# GIF NSFW AVANÇADO
 # ======================
 @bot.message_handler(commands=['gifnsfw'])
 def gifnsfw(m):
 
     if m.chat.type != "private":
-        bot.reply_to(m,"🚫 Conteúdo NSFW apenas no privado.")
+        bot.reply_to(m,"🚫 Conteúdo NSFW apenas no chat privado.")
         return
 
     try:
 
-        apis = [
-            "https://nekos.life/api/v2/img/Random_hentai_gif",
-            "https://nekos.life/api/v2/img/pussy",
-            "https://nekos.life/api/v2/img/lesbian"
+        fontes = [
+
+            # Waifu.pics
+            ("https://api.waifu.pics/nsfw/waifu","url"),
+
+            # Nekos.life
+            ("https://nekos.life/api/v2/img/hentai","url"),
+            ("https://nekos.life/api/v2/img/pgif","url")
+
         ]
 
-        url_api = random.choice(apis)
+        api, campo = random.choice(fontes)
 
-        r = requests.get(url_api).json()
+        r = requests.get(api).json()
 
-        gif = r["url"]
+        gif = r[campo]
 
         bot.send_animation(
             m.chat.id,
             gif,
-            caption="🔞 GIF NSFW"
+            caption="🔞 NSFW"
         )
 
     except Exception as e:
+
         print("Erro gifnsfw:", e)
-        bot.reply_to(m,"💛 Não consegui buscar GIF.")
+
+        bot.reply_to(m,"💛 Não consegui buscar conteúdo NSFW.")
 
 # HUG
 @bot.message_handler(commands=['hug'])
@@ -321,6 +383,113 @@ def avatar(m):
 
     if fotos.total_count > 0:
         bot.send_photo(m.chat.id,fotos.photos[0][0].file_id)
+
+# ======================
+# ANTILINK INTELIGENTE
+# ======================
+
+antilink = {}
+
+@bot.message_handler(commands=['antilink'])
+def antilink_cmd(m):
+
+    if m.chat.type == "private":
+        bot.reply_to(m,"❌ Esse comando só funciona em grupos.")
+        return
+
+    args = m.text.split()
+
+    if len(args) < 2:
+        bot.reply_to(m,"Use:\n/antilink on\n/antilink off")
+        return
+
+    if args[1].lower() == "on":
+
+        antilink[m.chat.id] = True
+        bot.reply_to(m,"🛡 Antilink ativado!")
+
+    elif args[1].lower() == "off":
+
+        antilink[m.chat.id] = False
+        bot.reply_to(m,"✅ Antilink desativado!")
+
+# DETECTOR DE LINKS
+@bot.message_handler(func=lambda m: True)
+def detectar_links(m):
+
+    if m.chat.id not in antilink:
+        return
+
+    if not antilink[m.chat.id]:
+        return
+
+    if not m.text:
+        return
+
+    links = [
+        "http://",
+        "https://",
+        "t.me/",
+        "telegram.me",
+        "www."
+    ]
+
+    if any(link in m.text.lower() for link in links):
+
+        try:
+
+            member = bot.get_chat_member(m.chat.id, m.from_user.id)
+
+            if member.status in ["administrator","creator"]:
+                return
+
+            bot.delete_message(m.chat.id, m.message_id)
+
+            bot.send_message(
+                m.chat.id,
+                f"🚫 @{m.from_user.username or m.from_user.first_name} links não são permitidos!"
+            )
+
+        except Exception as e:
+            print("Erro antilink:", e)
+
+# Sistema de avisos
+avisos = {}  # {chat_id: {user_id: quantidade}}
+
+@bot.message_handler(commands=['warn'])
+def warn(m):
+    if m.chat.type == "private":
+        bot.reply_to(m,"🚫 Comando disponível apenas em grupos!")
+        return
+
+    if not m.reply_to_message:
+        bot.reply_to(m,"💛 Use /warn respondendo à mensagem do usuário que deseja avisar.")
+        return
+
+    user = m.reply_to_message.from_user
+    chat = m.chat.id
+
+    # Protege admins
+    try:
+        membro = bot.get_chat_member(chat, user.id)
+        if membro.status in ["administrator","creator"]:
+            bot.reply_to(m,"🚫 Não é possível avisar admins!")
+            return
+    except:
+        pass
+
+    if chat not in avisos:
+        avisos[chat] = {}
+
+    if user.id not in avisos[chat]:
+        avisos[chat][user.id] = 0
+
+    avisos[chat][user.id] += 1
+    total = avisos[chat][user.id]
+
+    bot.reply_to(m,f"⚠️ {user.first_name} recebeu um aviso! Total: {total}")
+
+
 
 print("🌻 KaoriBot iniciado")
 
