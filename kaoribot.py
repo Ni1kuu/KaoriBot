@@ -16,12 +16,21 @@ YOUTUBE_KEY = os.getenv("YOUTUBE_KEY")
 bot = telebot.TeleBot(TOKEN)
 antilink = {}
 
+# ----------------------
+# INICIO / UPTIME
+# ----------------------
+start_time = time.time()
+
+# ----------------------
+# MENU
+# ----------------------
 MENU = """
 ╭━━ 💛🌻 MENU KAORI 🌻💛 ━━╮
 
 💛 ⚙️ SISTEMA
 /start
 /ping
+/info
 
 💛 📌 FIXAR
 /pin
@@ -34,12 +43,12 @@ MENU = """
 💛 🎮 DIVERSÃO
 /gif – GIF anime (opcional)
 /meme
-/play
+/play – YouTube (link)
 
 💛 🛠 UTILIDADES
 /userinfo
 /avatar
-/search
+/google
 
 💛 🛡 MODERAÇÃO
 /ban
@@ -48,23 +57,23 @@ MENU = """
 ╰━━━━━━━━━━━━━━━━━━━━╯
 """
 
-# ======================
+# ----------------------
 # START / PING
-# ======================
+# ----------------------
 @bot.message_handler(commands=['start'])
 def start(m):
     bot.send_message(m.chat.id, MENU)
 
 @bot.message_handler(commands=['ping'])
 def ping(m):
-    start_time = time.time()
+    ping_start = time.time()
     msg = bot.reply_to(m, "🏓 Pingando...")
-    elapsed = int((time.time() - start_time) * 1000)
+    elapsed = int((time.time() - ping_start) * 1000)
     bot.edit_message_text(f"🏓 Pong! {elapsed} ms", m.chat.id, msg.message_id)
 
-# ======================
+# ----------------------
 # PIN / UNPIN
-# ======================
+# ----------------------
 @bot.message_handler(commands=['pin'])
 def pin(m):
     if m.reply_to_message:
@@ -84,9 +93,9 @@ def unpin(m):
     except:
         bot.reply_to(m, "🚫 Não foi possível desfixar!")
 
-# ======================
+# ----------------------
 # WAIFU SFW / NSFW
-# ======================
+# ----------------------
 @bot.message_handler(commands=['waifu', 'waifunsfw'])
 def waifu(m):
     if m.text.startswith("/waifunsfw") and m.chat.type != "private":
@@ -99,9 +108,9 @@ def waifu(m):
     except:
         bot.reply_to(m, "💛 Não consegui pegar a waifu!")
 
-# ======================
+# ----------------------
 # GIF (Giphy)
-# ======================
+# ----------------------
 @bot.message_handler(commands=['gif'])
 def gif(m):
     try:
@@ -116,9 +125,9 @@ def gif(m):
     except:
         bot.reply_to(m, "💛 Erro ao buscar GIF!")
 
-# ======================
+# ----------------------
 # USERINFO
-# ======================
+# ----------------------
 @bot.message_handler(commands=['userinfo'])
 def userinfo(m):
     user = m.from_user
@@ -130,9 +139,9 @@ def userinfo(m):
 """
     bot.reply_to(m, msg)
 
-# ======================
+# ----------------------
 # AVATAR
-# ======================
+# ----------------------
 @bot.message_handler(commands=['avatar'])
 def avatar(m):
     photos = bot.get_user_profile_photos(m.from_user.id)
@@ -141,9 +150,9 @@ def avatar(m):
     else:
         bot.reply_to(m, "💛 Você não possui foto de perfil.")
 
-# ======================
+# ----------------------
 # BAN
-# ======================
+# ----------------------
 @bot.message_handler(commands=['ban'])
 def ban(m):
     if m.reply_to_message:
@@ -155,9 +164,9 @@ def ban(m):
     else:
         bot.reply_to(m, "💛 Responda à mensagem da pessoa que deseja banir.")
 
-# ======================
+# ----------------------
 # ANTILINK
-# ======================
+# ----------------------
 @bot.message_handler(commands=['antilink'])
 def anti(m):
     args = m.text.split()
@@ -178,34 +187,25 @@ def verifica_link(m):
             bot.send_message(m.chat.id, "🚫 Link proibido! Usuário banido.")
         except: pass
 
-# ======================
-# GOOGLE (pesquisar)
-# ======================
+# ----------------------
+# GOOGLE
+# ----------------------
 @bot.message_handler(commands=['google'])
 def google(m):
     try:
         texto = m.text.replace("/google", "").strip()
-
         if not texto:
             bot.reply_to(m, "💛 Use: /google algo para pesquisar")
             return
-
         termo = urllib.parse.quote_plus(texto)
         link = f"https://www.google.com/search?q={termo}"
-
-        bot.send_message(
-            m.chat.id,
-            f"🔎 Pesquisa Google\n\n"
-            f"📌 {texto}\n"
-            f"🌐 {link}"
-        )
-
-    except Exception as e:
+        bot.send_message(m.chat.id, f"🔎 Pesquisa Google\n📌 {texto}\n🌐 {link}")
+    except:
         bot.reply_to(m, "💛 Erro ao fazer a pesquisa.")
 
-# ======================
-# MEME (pt-BR)
-# ======================
+# ----------------------
+# MEME
+# ----------------------
 @bot.message_handler(commands=['meme'])
 def meme(m):
     try:
@@ -214,47 +214,52 @@ def meme(m):
     except:
         bot.reply_to(m, "💛 Não consegui buscar um meme.")
 
-# ======================
-# PLAY (youtube)
-# ======================
+# ----------------------
+# PLAY (YouTube)
+# ----------------------
 @bot.message_handler(commands=['play'])
 def play(m):
     args = m.text.split(maxsplit=1)
-
     if len(args) < 2:
         bot.reply_to(m, "💛 Use: /play nome da música")
         return
-
     query = args[1]
-
     try:
-        url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={query}&key={YOUTUBE_KEY}&maxResults=1&type=video"
-
-        r = requests.get(url).json()
-
+        r = requests.get(
+            f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={urllib.parse.quote_plus(query)}&key={YOUTUBE_KEY}&maxResults=1&type=video"
+        ).json()
         if not r["items"]:
             bot.reply_to(m, "💛 Não encontrei essa música.")
             return
-
         video = r["items"][0]
         titulo = video["snippet"]["title"]
         canal = video["snippet"]["channelTitle"]
         video_id = video["id"]["videoId"]
-
         link = f"https://youtu.be/{video_id}"
-
-        bot.send_message(
-            m.chat.id,
-            f"🎵 Música encontrada!\n\n"
-            f"📀 {titulo}\n"
-            f"📺 Canal: {canal}\n\n"
-            f"▶️ {link}"
-        )
-
+        bot.send_message(m.chat.id, f"🎵 Música encontrada!\n📀 {titulo}\n📺 Canal: {canal}\n▶️ {link}")
     except:
-        bot.reply_to(m, "💛 Erro ao buscar música!")
-# ======================
+        bot.reply_to(m, "💛 Erro ao buscar a música.")
+
+# ----------------------
+# INFO (uptime)
+# ----------------------
+@bot.message_handler(commands=['info'])
+def info(m):
+    uptime_segundos = int(time.time() - start_time)
+    horas = uptime_segundos // 3600
+    minutos = (uptime_segundos % 3600) // 60
+    segundos = uptime_segundos % 60
+    msg = f"""╭━━━━━━━━━━━━━━━
+🌻 INFO KAORI 🌻
+╰━━━━━━━━━━━━━━━
+🌻 Versão: 1.0
+👤 Criador: @ni1ckkj
+⏱ Uptime: {horas}h {minutos}m {segundos}s
+"""
+    bot.send_message(m.chat.id, msg)
+
+# ----------------------
 # INICIAR BOT
-# ======================
-print("🌻 KaoriBot simples iniciado!")
+# ----------------------
+print("🌻 KaoriBot completo iniciado!")
 bot.infinity_polling()
