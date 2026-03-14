@@ -121,21 +121,46 @@ def waifu(m):
 @bot.message_handler(commands=['gifnsfw'])
 def gifnsfw(m):
     if m.chat.type != "private":
-        bot.reply_to(m,"🚫 NSFW só no privado!")
+        bot.reply_to(m, "🚫 NSFW só no privado!")
         return
+
     try:
+        # Categories que você quer permitir
+        categorias = [
+            "ass","hentai","blowjob","anal","boobs","cum","threesome","pussy","milf"
+        ]
+
         args = m.text.split()
-        tag = args[1] if len(args) > 1 else "nsfw"
-        # Requisição RedGIFs random
-        r = requests.get(f"https://api.redgifs.com/v2/gifs/random?tag={tag}").json()
-        if "gif" not in r:
-            bot.reply_to(m,"💛 Não consegui buscar GIF NSFW!")
+        if len(args) > 1:
+            categoria = args[1].lower()
+            if categoria not in categorias:
+                bot.reply_to(m,f"💛 Categoria inválida! Use: {', '.join(categorias)}")
+                return
+        else:
+            categoria = random.choice(categorias)
+
+        # Endpoint RedGIFs
+        url = f"https://api.redgifs.com/v2/gifs/search?search_text={categoria}&count=20"
+        r = requests.get(url).json()
+
+        gifs = r.get("gifs",[])
+        if not gifs:
+            bot.reply_to(m,"💛 Não encontrei GIFs nessa categoria!")
             return
-        gif_data = r["gif"]
-        # Prioridade: hd > sd
-        link = gif_data["urls"]["hd"] if "hd" in gif_data["urls"] else gif_data["urls"]["sd"]
-        bot.send_animation(m.chat.id, link)
-    except:
+
+        gif = random.choice(gifs)
+
+        # Melhor qualidade disponível
+        video = gif["urls"].get("hd") or gif["urls"].get("sd") or gif["urls"].get("tiny")
+
+        if not video:
+            bot.reply_to(m,"💛 Não consegui pegar o GIF!")
+            return
+
+        bot.send_video(m.chat.id, video, caption=f"💛 Categoria: {categoria}")
+
+    except Exception as e:
+        print("Erro /gifnsfw:", e)
         bot.reply_to(m,"💛 Erro ao buscar GIF NSFW!")
 
 # ======================
