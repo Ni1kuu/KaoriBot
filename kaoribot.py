@@ -11,6 +11,7 @@ from telebot import types
 # ----------------------
 TOKEN = os.getenv("BOT_TOKEN")
 GIPHY_KEY = os.getenv("GIPHY_KEY")
+YOUTUBE_KEY = os.getenv("YOUTUBE_KEY")
 
 bot = telebot.TeleBot(TOKEN)
 antilink = {}
@@ -33,6 +34,7 @@ MENU = """
 💛 🎮 DIVERSÃO
 /gif – GIF anime (opcional)
 /meme
+/play
 
 💛 🛠 UTILIDADES
 /userinfo
@@ -177,18 +179,29 @@ def verifica_link(m):
         except: pass
 
 # ======================
-# SEARCH (Google)
+# GOOGLE (pesquisar)
 # ======================
-@bot.message_handler(commands=['search'])
-def search(m):
-    args = m.text.split(maxsplit=1)
-    if len(args) < 2:
-        bot.reply_to(m, "💛 Use /search <termo>")
-        return
-    termo = args[1].strip()
-    termo_escapado = urllib.parse.quote_plus(termo)
-    link = f"https://www.google.com/search?q={termo_escapado}"
-    bot.send_message(m.chat.id, f"🔎 Resultado da pesquisa para '{termo}':\n{link}")
+@bot.message_handler(commands=['google'])
+def google(m):
+    try:
+        texto = m.text.replace("/google", "").strip()
+
+        if not texto:
+            bot.reply_to(m, "💛 Use: /google algo para pesquisar")
+            return
+
+        termo = urllib.parse.quote_plus(texto)
+        link = f"https://www.google.com/search?q={termo}"
+
+        bot.send_message(
+            m.chat.id,
+            f"🔎 Pesquisa Google\n\n"
+            f"📌 {texto}\n"
+            f"🌐 {link}"
+        )
+
+    except Exception as e:
+        bot.reply_to(m, "💛 Erro ao fazer a pesquisa.")
 
 # ======================
 # MEME (pt-BR)
@@ -201,6 +214,45 @@ def meme(m):
     except:
         bot.reply_to(m, "💛 Não consegui buscar um meme.")
 
+# ======================
+# PLAY (youtube)
+# ======================
+@bot.message_handler(commands=['play'])
+def play(m):
+    args = m.text.split(maxsplit=1)
+
+    if len(args) < 2:
+        bot.reply_to(m, "💛 Use: /play nome da música")
+        return
+
+    query = args[1]
+
+    try:
+        url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={query}&key={YOUTUBE_KEY}&maxResults=1&type=video"
+
+        r = requests.get(url).json()
+
+        if not r["items"]:
+            bot.reply_to(m, "💛 Não encontrei essa música.")
+            return
+
+        video = r["items"][0]
+        titulo = video["snippet"]["title"]
+        canal = video["snippet"]["channelTitle"]
+        video_id = video["id"]["videoId"]
+
+        link = f"https://youtu.be/{video_id}"
+
+        bot.send_message(
+            m.chat.id,
+            f"🎵 Música encontrada!\n\n"
+            f"📀 {titulo}\n"
+            f"📺 Canal: {canal}\n\n"
+            f"▶️ {link}"
+        )
+
+    except:
+        bot.reply_to(m, "💛 Erro ao buscar música!")
 # ======================
 # INICIAR BOT
 # ======================
