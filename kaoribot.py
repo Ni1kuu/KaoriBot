@@ -6,8 +6,6 @@ import time
 from telebot import types
 
 TOKEN = os.getenv("BOT_TOKEN")
-GIPHY_KEY = os.getenv("GIPHY_KEY")
-
 bot = telebot.TeleBot(TOKEN)
 
 # ======================
@@ -17,7 +15,7 @@ antilink = {}
 jogo = {}
 colecao_waifus = {}
 waifu_atual = {}
-avisos = {}  # para /warn
+avisos = {}
 
 palavras = [
     "computador","banana","anime","python","telegram",
@@ -45,7 +43,7 @@ MENU = """
 /capturar – Capturar waifu
 /minhaswaifus – Ver coleção
 /rankwaifu – Ranking
-/gifnsfw – GIF NSFW anime (privado)
+/gifnsfw – GIF NSFW explícito (privado)
 
 💛 🎮 DIVERSÃO
 /gif – GIF anime (categoria opcional)
@@ -109,7 +107,6 @@ def waifu(m):
         url_api = "https://api.waifu.pics/nsfw/waifu"
     else:
         url_api = "https://api.waifu.pics/sfw/waifu"
-
     try:
         r = requests.get(url_api).json()
         img = r["url"]
@@ -118,24 +115,32 @@ def waifu(m):
     except:
         bot.reply_to(m,"💛 Não consegui pegar a waifu!")
 
+# ======================
+# GIF NSFW via RedGIFs (explícito e customizável)
+# ======================
 @bot.message_handler(commands=['gifnsfw'])
 def gifnsfw(m):
     if m.chat.type != "private":
         bot.reply_to(m,"🚫 NSFW só no privado!")
         return
     try:
-        url = f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_KEY}&q=nsfw+anime&limit=25&rating=r"
-        r = requests.get(url).json()
-        resultados = r.get("data", [])
-        if not resultados:
+        args = m.text.split()
+        tag = args[1] if len(args) > 1 else "nsfw"
+        # Requisição RedGIFs random
+        r = requests.get(f"https://api.redgifs.com/v2/gifs/random?tag={tag}").json()
+        if "gif" not in r:
             bot.reply_to(m,"💛 Não consegui buscar GIF NSFW!")
             return
-        escolhido = random.choice(resultados)
-        link = escolhido["images"]["original"]["url"]
+        gif_data = r["gif"]
+        # Prioridade: hd > sd
+        link = gif_data["urls"]["hd"] if "hd" in gif_data["urls"] else gif_data["urls"]["sd"]
         bot.send_animation(m.chat.id, link)
     except:
         bot.reply_to(m,"💛 Erro ao buscar GIF NSFW!")
 
+# ======================
+# CAPTURAR WAIFU / MINHASWAIFUS / RANK
+# ======================
 @bot.message_handler(commands=['capturar'])
 def capturar(m):
     chat = m.chat.id
@@ -175,7 +180,7 @@ def gif(m):
     try:
         args = m.text.split()
         termo = "anime " + " ".join(args[1:]) if len(args)>1 else "anime"
-        url = f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_KEY}&q={termo}&limit=25&rating=pg"
+        url = f"https://api.giphy.com/v1/gifs/search?api_key={os.getenv('GIPHY_KEY')}&q={termo}&limit=25&rating=pg"
         r = requests.get(url).json()
         resultados = r.get("data", [])
         if not resultados:
@@ -218,7 +223,7 @@ def anagrama(m):
     bot.send_message(m.chat.id,f"💛 Adivinhe: {misturada}")
 
 # ======================
-# ANAGRAMA RESPOSTA E ANTILINK INTELIGENTE
+# RESPOSTA ANAGRAMA / ANTILINK
 # ======================
 @bot.message_handler(func=lambda m: True)
 def resposta(m):
@@ -271,7 +276,7 @@ def avatar(m):
         bot.send_photo(m.chat.id,photos.photos[0][0].file_id)
 
 # ======================
-# PIN / UNPIN (funciona no privado e grupos)
+# PIN / UNPIN
 # ======================
 @bot.message_handler(commands=['pin'])
 def pin(m):
@@ -302,7 +307,7 @@ def ban(m):
         bot.ban_chat_member(m.chat.id,uid)
 
 # ======================
-# ANTILINK ON/OFF
+# ANTILINK
 # ======================
 @bot.message_handler(commands=['antilink'])
 def anti(m):
@@ -316,7 +321,7 @@ def anti(m):
         bot.reply_to(m,"✅ Antilink desativado")
 
 # ======================
-# WARN / MUTE / UNMUTE COM TEMPO CUSTOMIZÁVEL
+# WARN / MUTE / UNMUTE
 # ======================
 @bot.message_handler(commands=['warn'])
 def warn(m):
@@ -350,10 +355,9 @@ def mute(m):
         bot.reply_to(m,"💛 Use /mute respondendo à mensagem do usuário.")
         return
     args = m.text.split()
-    minutos = 10  # padrão
+    minutos = 10
     if len(args)>1:
-        try:
-            minutos = int(args[1])
+        try: minutos = int(args[1])
         except: pass
     user = m.reply_to_message.from_user
     chat = m.chat.id
@@ -402,5 +406,5 @@ def clearall(m):
 # ======================
 # INICIAR BOT
 # ======================
-print("🌻 KaoriBot completo iniciado com /mute customizável")
+print("🌻 KaoriBot completo iniciado com /gifnsfw RedGIFs")
 bot.infinity_polling()
