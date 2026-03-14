@@ -2,6 +2,8 @@ import os
 import telebot
 import requests
 import random
+import time
+import urllib.parse
 from telebot import types
 
 # ----------------------
@@ -11,7 +13,6 @@ TOKEN = os.getenv("BOT_TOKEN")
 GIPHY_KEY = os.getenv("GIPHY_KEY")
 
 bot = telebot.TeleBot(TOKEN)
-
 antilink = {}
 
 MENU = """
@@ -51,10 +52,11 @@ MENU = """
 @bot.message_handler(commands=['start'])
 def start(m):
     bot.send_message(m.chat.id, MENU)
+
 @bot.message_handler(commands=['ping'])
 def ping(m):
     start_time = time.time()
-    msg = bot.reply_to(m,"🏓 Pingando...")
+    msg = bot.reply_to(m, "🏓 Pingando...")
     elapsed = int((time.time() - start_time) * 1000)
     bot.edit_message_text(f"🏓 Pong! {elapsed} ms", m.chat.id, msg.message_id)
 
@@ -65,35 +67,35 @@ def ping(m):
 def pin(m):
     if m.reply_to_message:
         try:
-            bot.pin_chat_message(m.chat.id,m.reply_to_message.message_id)
-            bot.reply_to(m,"📌 Mensagem fixada!")
+            bot.pin_chat_message(m.chat.id, m.reply_to_message.message_id)
+            bot.reply_to(m, "📌 Mensagem fixada!")
         except:
-            bot.reply_to(m,"🚫 Não foi possível fixar!")
+            bot.reply_to(m, "🚫 Não foi possível fixar!")
     else:
-        bot.reply_to(m,"💛 Responda à mensagem que deseja fixar!")
+        bot.reply_to(m, "💛 Responda à mensagem que deseja fixar!")
 
 @bot.message_handler(commands=['unpin'])
 def unpin(m):
     try:
         bot.unpin_all_chat_messages(m.chat.id)
-        bot.reply_to(m,"📌 Todas as mensagens desfixadas!")
+        bot.reply_to(m, "📌 Todas as mensagens desfixadas!")
     except:
-        bot.reply_to(m,"🚫 Não foi possível desfixar!")
+        bot.reply_to(m, "🚫 Não foi possível desfixar!")
 
 # ======================
 # WAIFU SFW / NSFW
 # ======================
-@bot.message_handler(commands=['waifu','waifunsfw'])
+@bot.message_handler(commands=['waifu', 'waifunsfw'])
 def waifu(m):
     if m.text.startswith("/waifunsfw") and m.chat.type != "private":
-        bot.reply_to(m,"🚫 NSFW só no privado!")
+        bot.reply_to(m, "🚫 NSFW só no privado!")
         return
     url_api = "https://api.waifu.pics/nsfw/waifu" if m.text.startswith("/waifunsfw") else "https://api.waifu.pics/sfw/waifu"
     try:
         r = requests.get(url_api).json()
         bot.send_photo(m.chat.id, r["url"], caption="💛 Aqui está sua waifu!")
     except:
-        bot.reply_to(m,"💛 Não consegui pegar a waifu!")
+        bot.reply_to(m, "💛 Não consegui pegar a waifu!")
 
 # ======================
 # GIF (Giphy)
@@ -106,11 +108,11 @@ def gif(m):
         r = requests.get(f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_KEY}&q={termo}&limit=25&rating=pg").json()
         data = r.get("data", [])
         if not data:
-            bot.reply_to(m,"💛 Não encontrei GIFs nessa categoria!")
+            bot.reply_to(m, "💛 Não encontrei GIFs nessa categoria!")
             return
         bot.send_animation(m.chat.id, random.choice(data)["images"]["original"]["url"])
     except:
-        bot.reply_to(m,"💛 Erro ao buscar GIF!")
+        bot.reply_to(m, "💛 Erro ao buscar GIF!")
 
 # ======================
 # USERINFO
@@ -135,7 +137,7 @@ def avatar(m):
     if photos.total_count > 0:
         bot.send_photo(m.chat.id, photos.photos[0][0].file_id, caption="Aqui está seu avatar ꒰ᐢ. .ᐢ꒱₊˚⊹")
     else:
-        bot.reply_to(m,"💛 Você não possui foto de perfil.")
+        bot.reply_to(m, "💛 Você não possui foto de perfil.")
 
 # ======================
 # BAN
@@ -145,11 +147,11 @@ def ban(m):
     if m.reply_to_message:
         try:
             bot.ban_chat_member(m.chat.id, m.reply_to_message.from_user.id)
-            bot.reply_to(m,"🚫 Usuário banido com sucesso!")
+            bot.reply_to(m, "🚫 Usuário banido com sucesso!")
         except:
-            bot.reply_to(m,"💛 Não foi possível banir o usuário.")
+            bot.reply_to(m, "💛 Não foi possível banir o usuário.")
     else:
-        bot.reply_to(m,"💛 Responda à mensagem da pessoa que deseja banir.")
+        bot.reply_to(m, "💛 Responda à mensagem da pessoa que deseja banir.")
 
 # ======================
 # ANTILINK
@@ -160,10 +162,10 @@ def anti(m):
     if len(args) < 2: return
     if args[1].lower() == "on":
         antilink[m.chat.id] = True
-        bot.reply_to(m,"🚫 Antilink ativado")
+        bot.reply_to(m, "🚫 Antilink ativado")
     elif args[1].lower() == "off":
         antilink[m.chat.id] = False
-        bot.reply_to(m,"✅ Antilink desativado")
+        bot.reply_to(m, "✅ Antilink desativado")
 
 @bot.message_handler(func=lambda m: True)
 def verifica_link(m):
@@ -171,27 +173,25 @@ def verifica_link(m):
         try:
             bot.delete_message(m.chat.id, m.message_id)
             bot.ban_chat_member(m.chat.id, m.from_user.id)
-            bot.send_message(m.chat.id,"🚫 Link proibido! Usuário banido.")
+            bot.send_message(m.chat.id, "🚫 Link proibido! Usuário banido.")
         except: pass
 
 # ======================
 # SEARCH (Google)
 # ======================
-import urllib.parse
-
 @bot.message_handler(commands=['search'])
 def search(m):
-    args = m.text.split(maxsplit=1)  # Pega tudo depois do comando
+    args = m.text.split(maxsplit=1)
     if len(args) < 2:
         bot.reply_to(m, "💛 Use /search <termo>")
         return
-    termo = args[1].strip()  # Remove espaços extras no começo/fim
-    termo_escapado = urllib.parse.quote_plus(termo)  # Escapa espaços e caracteres especiais
+    termo = args[1].strip()
+    termo_escapado = urllib.parse.quote_plus(termo)
     link = f"https://www.google.com/search?q={termo_escapado}"
     bot.send_message(m.chat.id, f"🔎 Resultado da pesquisa para '{termo}':\n{link}")
 
 # ======================
-# MEME (em português)
+# MEME (pt-BR)
 # ======================
 @bot.message_handler(commands=['meme'])
 def meme(m):
@@ -199,7 +199,7 @@ def meme(m):
         r = requests.get("https://meme-api.com/gimme/pt_br").json()
         bot.send_photo(m.chat.id, r['url'])
     except:
-        bot.reply_to(m,"💛 Não consegui buscar um meme.")
+        bot.reply_to(m, "💛 Não consegui buscar um meme.")
 
 # ======================
 # INICIAR BOT
