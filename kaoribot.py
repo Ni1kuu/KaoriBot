@@ -177,6 +177,8 @@ def verifica_link(m):
 # ======================
 # SEARCH (Google)
 # ======================
+import urllib.parse
+
 @bot.message_handler(commands=['search'])
 def search(m):
     args = m.text.split(maxsplit=1)  # Pega tudo depois do comando
