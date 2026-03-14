@@ -16,39 +16,40 @@ YOUTUBE_KEY = os.getenv("YOUTUBE_KEY")
 bot = telebot.TeleBot(TOKEN)
 antilink = {}
 
-start_time = time.time()  # para uptime
+start_time = time.time()
 
 MENU = """
-╭━━ 💛🌻 MENU KAORI 🌻💛 ━━╮
+╭━━ 💛🌻 MENU HIKARI 🌻💛 ━━╮
 
 💛 ⚙️ SISTEMA
-/start
-/ping
-/info
+/start – Iniciar Hikari
+/ping – Testar ping
+/info – Informações do bot
 
 💛 📌 FIXAR
-/pin
-/unpin
+/pin – Fixar mensagem
+/unpin – Desfixar mensagens
 
 💛 🌸 WAIFU
 /waifu – Waifu SFW
 /waifunsfw – Waifu NSFW (privado)
 
 💛 🎮 DIVERSÃO
-/gif – GIF anime
-/meme
-/play
+/gif – GIF anime (opcional)
+/meme – Meme em português 🇧🇷
+/play – Tocar música do YouTube 🎵
 
 💛 🛠 UTILIDADES
-/userinfo
-/avatar
-/google
+/userinfo – Informações do usuário 👤
+/avatar – Avatar do usuário 🖼
+/google – Pesquisar no Google 🔎
 
 💛 🛡 MODERAÇÃO
-/ban
-/antilink on/off
+/ban – Banir usuário 🚫
+/antilink on/off – Anti-link 🔗
 
 ╰━━━━━━━━━━━━━━━━━━━━╯
+"""
 """
 
 # ======================
@@ -62,8 +63,25 @@ def start(m):
 def ping(m):
     start = time.time()
     msg = bot.reply_to(m,"🏓 Pingando...")
-    elapsed = int((time.time() - start)*1000)
+    elapsed = int((time.time() - start) * 1000)
     bot.edit_message_text(f"🏓 Pong! {elapsed} ms", m.chat.id, msg.message_id)
+
+# ======================
+# INFO
+# ======================
+@bot.message_handler(commands=['info'])
+def info(m):
+    uptime = int(time.time() - start_time)
+    h = uptime // 3600
+    mnt = (uptime % 3600) // 60
+    s = uptime % 60
+    msg = f"""╭━━━━━━━━━━━━━━━
+🌻 INFO HIKARI 🌻
+╰━━━━━━━━━━━━━━━
+🌻 Versão: 1.0
+👤 Criador: @ni1ckkj
+⏱ Uptime: {h}h {mnt}m {s}s"""
+    bot.send_message(m.chat.id, msg)
 
 # ======================
 # PIN / UNPIN
@@ -72,7 +90,7 @@ def ping(m):
 def pin(m):
     if m.reply_to_message:
         try:
-            bot.pin_chat_message(m.chat.id,m.reply_to_message.message_id)
+            bot.pin_chat_message(m.chat.id, m.reply_to_message.message_id)
             bot.reply_to(m,"📌 Mensagem fixada!")
         except:
             bot.reply_to(m,"🚫 Não foi possível fixar!")
@@ -120,77 +138,116 @@ def gif(m):
         bot.reply_to(m,"💛 Erro ao buscar GIF!")
 
 # ======================
-# USERINFO (com @ ou reply)
+# MEME
+# ======================
+@bot.message_handler(commands=['meme'])
+def meme(m):
+    try:
+        r = requests.get("https://meme-api.com/gimme/pt_br").json()
+        bot.send_photo(m.chat.id, r['url'])
+    except:
+        bot.reply_to(m,"💛 Não consegui buscar um meme.")
+
+# ======================
+# PLAY (YouTube)
+# ======================
+@bot.message_handler(commands=['play'])
+def play(m):
+    args = m.text.split(maxsplit=1)
+    if len(args) < 2:
+        bot.reply_to(m, "💛 Use: /play <nome da música>")
+        return
+    query = urllib.parse.quote_plus(args[1])
+    try:
+        url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={query}&key={YOUTUBE_KEY}&maxResults=1&type=video"
+        r = requests.get(url).json()
+        if not r["items"]:
+            bot.reply_to(m,"💛 Música não encontrada!")
+            return
+        video = r["items"][0]
+        titulo = video["snippet"]["title"]
+        canal = video["snippet"]["channelTitle"]
+        video_id = video["id"]["videoId"]
+        link = f"https://youtu.be/{video_id}"
+        bot.send_message(m.chat.id, f"🎵 {titulo}\n📺 Canal: {canal}\n▶️ {link}")
+    except:
+        bot.reply_to(m,"💛 Erro ao buscar música!")
+
+# ======================
+# GOOGLE
+# ======================
+@bot.message_handler(commands=['google'])
+def google(m):
+    try:
+        texto = m.text.replace("/google","").strip()
+        if not texto:
+            bot.reply_to(m,"💛 Use: /google <termo>")
+            return
+        termo = urllib.parse.quote_plus(texto)
+        link = f"https://www.google.com/search?q={termo}"
+        bot.send_message(m.chat.id, f"🔎 Pesquisa Google\n📌 {texto}\n🌐 {link}")
+    except:
+        bot.reply_to(m,"💛 Erro ao fazer a pesquisa.")
+
+# ======================
+# USERINFO (com @)
 # ======================
 @bot.message_handler(commands=['userinfo'])
 def userinfo(m):
-    user = None
-    if m.reply_to_message:
-        user = m.reply_to_message.from_user
-    else:
-        args = m.text.split()
-        if len(args) > 1 and args[1].startswith("@"):
-            username = args[1][1:]
-            try:
-                chat_members = [a.user for a in bot.get_chat_administrators(m.chat.id)]
-                for member in chat_members:
-                    if member.username and member.username.lower() == username.lower():
-                        user = member
-                        break
-                if not user:
-                    bot.reply_to(m,"💛 Usuário não encontrado no grupo!")
-                    return
-            except:
-                bot.reply_to(m,"💛 Erro ao buscar usuário.")
+    try:
+        if m.reply_to_message:
+            user = m.reply_to_message.from_user
+        elif len(m.text.split())>1 and m.text.split()[1].startswith("@"):
+            username = m.text.split()[1][1:]
+            chat_members = bot.get_chat_administrators(m.chat.id) + bot.get_chat_members(m.chat.id) if m.chat.type!="private" else []
+            user = None
+            for member in chat_members:
+                if hasattr(member,"user") and member.user.username == username:
+                    user = member.user
+                    break
+            if not user:
+                bot.reply_to(m,"💛 Usuário não encontrado no chat.")
                 return
         else:
             user = m.from_user
-    msg = f"""💛 Informações do usuário:
+        msg = f"""💛 Informações do usuário:
 - Nome: {user.first_name}
 - Username: @{user.username if user.username else 'Não possui'}
 - ID: {user.id}
 - Is bot: {user.is_bot}
 """
-    bot.reply_to(m,msg)
+        bot.send_message(m.chat.id,msg)
+    except:
+        bot.reply_to(m,"💛 Erro ao pegar informações.")
 
 # ======================
-# AVATAR (com @ ou reply)
+# AVATAR (com @)
 # ======================
 @bot.message_handler(commands=['avatar'])
 def avatar(m):
-    user = None
-    if m.reply_to_message:
-        user = m.reply_to_message.from_user
-    else:
-        args = m.text.split()
-        if len(args) > 1 and args[1].startswith("@"):
-            username = args[1][1:]
-            try:
-                chat_members = [a.user for a in bot.get_chat_administrators(m.chat.id)]
-                for member in chat_members:
-                    if member.username and member.username.lower() == username.lower():
-                        user = member
-                        break
-                if not user:
-                    bot.reply_to(m,"💛 Usuário não encontrado no grupo!")
-                    return
-            except:
-                bot.reply_to(m,"💛 Erro ao buscar usuário.")
+    try:
+        if m.reply_to_message:
+            user = m.reply_to_message.from_user
+        elif len(m.text.split())>1 and m.text.split()[1].startswith("@"):
+            username = m.text.split()[1][1:]
+            chat_members = bot.get_chat_administrators(m.chat.id) + bot.get_chat_members(m.chat.id) if m.chat.type!="private" else []
+            user = None
+            for member in chat_members:
+                if hasattr(member,"user") and member.user.username == username:
+                    user = member.user
+                    break
+            if not user:
+                bot.reply_to(m,"💛 Usuário não encontrado no chat.")
                 return
         else:
             user = m.from_user
-    try:
         photos = bot.get_user_profile_photos(user.id)
         if photos.total_count > 0:
-            bot.send_photo(
-                m.chat.id,
-                photos.photos[0][0].file_id,
-                caption=f"Aqui está o avatar de {user.first_name} ꒰ᐢ. .ᐢ꒱₊˚⊹"
-            )
+            bot.send_photo(m.chat.id, photos.photos[0][0].file_id, caption="Aqui está o avatar ꒰ᐢ. .ᐢ꒱₊˚⊹")
         else:
             bot.reply_to(m,"💛 Usuário não possui foto de perfil.")
     except:
-        bot.reply_to(m,"💛 Não foi possível obter o avatar.")
+        bot.reply_to(m,"💛 Erro ao pegar avatar.")
 
 # ======================
 # BAN
@@ -199,7 +256,7 @@ def avatar(m):
 def ban(m):
     if m.reply_to_message:
         try:
-            bot.ban_chat_member(m.chat.id,m.reply_to_message.from_user.id)
+            bot.ban_chat_member(m.chat.id, m.reply_to_message.from_user.id)
             bot.reply_to(m,"🚫 Usuário banido com sucesso!")
         except:
             bot.reply_to(m,"💛 Não foi possível banir o usuário.")
@@ -230,77 +287,7 @@ def verifica_link(m):
         except: pass
 
 # ======================
-# GOOGLE (pesquisa)
-# ======================
-@bot.message_handler(commands=['google'])
-def google(m):
-    try:
-        texto = m.text.replace("/google","").strip()
-        if not texto:
-            bot.reply_to(m,"💛 Use: /google algo para pesquisar")
-            return
-        termo = urllib.parse.quote_plus(texto)
-        link = f"https://www.google.com/search?q={termo}"
-        bot.send_message(m.chat.id,f"🔎 Pesquisa Google\n\n📌 {texto}\n🌐 {link}")
-    except:
-        bot.reply_to(m,"💛 Erro ao fazer a pesquisa.")
-
-# ======================
-# MEME (pt-BR)
-# ======================
-@bot.message_handler(commands=['meme'])
-def meme(m):
-    try:
-        r = requests.get("https://meme-api.com/gimme/pt_br").json()
-        bot.send_photo(m.chat.id, r['url'])
-    except:
-        bot.reply_to(m,"💛 Não consegui buscar um meme.")
-
-# ======================
-# PLAY (YouTube)
-# ======================
-@bot.message_handler(commands=['play'])
-def play(m):
-    args = m.text.split(maxsplit=1)
-    if len(args)<2:
-        bot.reply_to(m,"💛 Use: /play <nome da música>")
-        return
-    query = args[1]
-    try:
-        url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={urllib.parse.quote_plus(query)}&key={YOUTUBE_KEY}&maxResults=1&type=video"
-        r = requests.get(url).json()
-        if not r.get("items"):
-            bot.reply_to(m,"💛 Não encontrei essa música.")
-            return
-        video = r["items"][0]
-        titulo = video["snippet"]["title"]
-        canal = video["snippet"]["channelTitle"]
-        video_id = video["id"]["videoId"]
-        link = f"https://youtu.be/{video_id}"
-        bot.send_message(m.chat.id,f"🎵 Música encontrada!\n\n📀 {titulo}\n📺 Canal: {canal}\n▶️ {link}")
-    except:
-        bot.reply_to(m,"💛 Erro ao buscar a música.")
-
-# ======================
-# INFO (uptime)
-# ======================
-@bot.message_handler(commands=['info'])
-def info(m):
-    uptime_seg = int(time.time()-start_time)
-    horas = uptime_seg // 3600
-    minutos = (uptime_seg % 3600)//60
-    segundos = uptime_seg % 60
-    msg = f"""╭━━━━━━━━━━━━━━━
-🌻 INFO KAORI 🌻
-╰━━━━━━━━━━━━━━━
-🌻 Versão: 1.0
-👤 Criador: @ni1ckkj
-⏱ Uptime: {horas}h {minutos}m {segundos}s
-"""
-    bot.send_message(m.chat.id,msg)
-
-# ======================
 # INICIAR BOT
 # ======================
-print("🌻 KaoriBot completo iniciado!")
+print("🌻 Hikari iniciado!")
 bot.infinity_polling()
